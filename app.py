@@ -1,314 +1,377 @@
+# app.py
+
 import streamlit as st
-import pandas as pd
 import os
-import random
-from io import BytesIO
+import pandas as pd
+from openai import AzureOpenAI
+from sentence_transformers import SentenceTransformer, util
+import numpy as np
 import pypdf
 import docx2txt
-from sentence_transformers import SentenceTransformer, util
-from openai import AzureOpenAI
+from pathlib import Path
 
-# =============================================
-# HARD-CODED AZURE OPENAI CONFIG (YOUR REQUEST)
-# =============================================
-# WARNING: Hardcoding API keys is for development / localhost only.
-# Never push this file to public GitHub with a real key!
+# ────────────────────────────────────────────────
+#  SECRETS / CONFIG  (Change this before production!)
+# ────────────────────────────────────────────────
 
-AZURE_OPENAI_API_KEY = "d61f68e18b894a36a48063cd1fe6a457"          # ← REPLACE WITH YOUR REAL AZURE KEY HERE
-AZURE_ENDPOINT = "https://hkust.azure-api.net"
-AZURE_API_VERSION = "2025-02-01-preview"
-AZURE_MODEL = "gpt-4o"
+AZURE_OPENAI_API_KEY    = "d61f68e18b894a36a48063cd1fe6a457"   # ← DANGER: DO NOT COMMIT
+AZURE_ENDPOINT          = "https://hkust.azure-api.net"
+AZURE_API_VERSION       = "2025-02-01-preview"
+AZURE_MODEL             = "gpt-4o-mini"
 
-# Safety check
-if AZURE_OPENAI_API_KEY == "<my_key>" or not AZURE_OPENAI_API_KEY:
-    st.error("⚠️ **Please replace `<my_key>` with your real Azure OpenAI API key** in the code (line 18)")
-    st.stop()
+SEMANTIC_MODEL          = "all-MiniLM-L6-v2"
 
-# =============================================
-# SETUP & CONFIG
-# =============================================
+MAX_JOBS                = 10
+MAX_PROFILES            = 10
+
+# ────────────────────────────────────────────────
+#  Initialize clients & models (cached)
+# ────────────────────────────────────────────────
+
 st.set_page_config(
-    page_title="CareerBridge AI",
-    page_icon="🌉",
-    layout="wide"
+    page_title = "CareerBridge AI",
+    page_icon = "🌉",
+    layout = "wide"
 )
 
-st.title("🌉 CareerBridge AI")
-st.header("Bridge the gap to your dream career")
-st.markdown("""
-**Upload your resume** → AI instantly finds perfect **JobsDB** matches + **LinkedIn mentors** who have walked your exact path.
-""")
+@st.cache_resource
+def get_openai_client():
+    return AzureOpenAI(
+        api_key=AZURE_OPENAI_API_KEY,
+        azure_endpoint=AZURE_ENDPOINT,
+        api_version=AZURE_API_VERSION
+    )
 
-st.success("✅ Azure OpenAI key is hard-coded and ready")
+@st.cache_resource
+def get_semantic_model():
+    return SentenceTransformer(SEMANTIC_MODEL)
 
-# =============================================
-# SAMPLE DATA GENERATION (21 records)
-# =============================================
-def generate_sample_jobs(n=21):
-    titles = ["Software Engineer", "Senior Data Scientist", "Product Manager", "DevOps Engineer", "UX/UI Designer",
-              "Machine Learning Engineer", "Marketing Manager", "Financial Analyst", "Cybersecurity Specialist", "Sales Executive"]
-    companies = ["TechNova HK", "DataForge", "InnovateAsia", "CloudPeak", "FinSecure", "DesignSphere", "SecureNet", "GlobalLink", "ByteWave", "QuantumLabs"]
-    locations = ["Hong Kong", "Kowloon", "Central", "Singapore", "Remote", "Hong Kong Island"]
-    
-    samples = []
-    for i in range(n):
-        title = random.choice(titles)
-        company = random.choice(companies)
-        loc = random.choice(locations)
-        summary = f"Join our team to build cutting-edge {title.lower()} solutions. {random.randint(2,8)} years experience preferred. Competitive salary + equity."
-        link = f"https://hk.jobsdb.com/hk/en/job/{title.lower().replace(' ', '-')}-{1000+i}"
-        samples.append({"title": title, "company": company, "location": loc, "summary": summary, "link": link})
-    return pd.DataFrame(samples)
+client = get_openai_client()
+embedder = get_semantic_model()
 
-def generate_sample_mentors(n=21):
-    first_names = ["Alex", "Jordan", "Taylor", "Casey", "Morgan", "Riley", "Jamie", "Parker", "Quinn", "Drew", "Sam"]
-    last_names = ["Lam", "Wong", "Chan", "Li", "Ng", "Cheung", "Ho", "Kwok", "Lau", "Ma", "Zhang"]
-    titles = ["Lead Software Engineer @ Google", "Principal Data Scientist @ Meta", "VP Product @ Tencent",
-              "Head of AI @ ByteDance", "Engineering Manager @ Microsoft", "Senior UX Designer @ Apple",
-              "Founder & Mentor", "Tech Lead @ Alibaba", "Career Coach (ex-IBM)", "Director of Engineering @ Amazon"]
-    base_summaries = ["15+ years in tech. Mentored 80+ professionals transitioning into software roles.",
-                      "Ex-FAANG. Passionate about helping juniors land their dream jobs.",
-                      "Built 3 startups from zero to acquisition. Loves 1:1 career chats."]
-    
-    samples = []
-    for i in range(n):
-        name = f"{random.choice(first_names)} {random.choice(last_names)}"
-        title = random.choice(titles)
-        summary = random.choice(base_summaries) + f" Currently at {title.split('@')[-1].strip()}."
-        link = f"https://www.linkedin.com/in/{name.lower().replace(' ', '-')}{i}/"
-        samples.append({"name": name, "job_title": title, "summary": summary, "link": link})
-    return pd.DataFrame(samples)
+# ────────────────────────────────────────────────
+#  Helper: call Azure OpenAI chat completion
+# ────────────────────────────────────────────────
 
-# =============================================
-# DATA LOADING
-# =============================================
-@st.cache_data
-def load_jobsdb():
-    csv_path = "jobsdb.csv"
-    if not os.path.exists(csv_path):
-        df = generate_sample_jobs(21)
-        df.to_csv(csv_path, index=False)
-        st.toast("Created new jobsdb.csv with 21 sample records")
-    else:
-        df = pd.read_csv(csv_path)
-    samples_df = generate_sample_jobs(21)
-    df = pd.concat([samples_df, df], ignore_index=True).drop_duplicates(subset=["title", "company", "link"]).reset_index(drop=True)
-    return df
+def generate_text(prompt: str, max_tokens: int = 800, temperature: float = 0.7) -> str:
+    try:
+        response = client.chat.completions.create(
+            model=AZURE_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens,
+            temperature=temperature
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        st.error(f"OpenAI API error: {e}")
+        return ""
 
-@st.cache_data
-def load_linkedin():
-    csv_path = "linkedin.csv"
-    if not os.path.exists(csv_path):
-        df = generate_sample_mentors(21)
-        df.to_csv(csv_path, index=False)
-        st.toast("Created new linkedin.csv with 21 sample records")
-    else:
-        df = pd.read_csv(csv_path)
-    samples_df = generate_sample_mentors(21)
-    df = pd.concat([samples_df, df], ignore_index=True).drop_duplicates(subset=["name", "job_title"]).reset_index(drop=True)
-    return df
+# ────────────────────────────────────────────────
+#  1. Parse CV (PDF or DOCX)
+# ────────────────────────────────────────────────
 
-# =============================================
-# CV PARSING
-# =============================================
-def parse_cv(uploaded_file):
+def parse_cv(uploaded_file) -> str:
     if uploaded_file is None:
         return ""
-    file_ext = uploaded_file.name.split(".")[-1].lower()
-    bytes_data = uploaded_file.getvalue()
-    text = ""
+
+    file_ext = Path(uploaded_file.name).suffix.lower()
+
     try:
-        if file_ext == "pdf":
-            pdf_reader = pypdf.PdfReader(BytesIO(bytes_data))
-            for page in pdf_reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text + "\n"
-        elif file_ext == "docx":
-            text = docx2txt.process(BytesIO(bytes_data))
+        if file_ext == ".pdf":
+            reader = pypdf.PdfReader(uploaded_file)
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        elif file_ext in [".docx", ".doc"]:
+            text = docx2txt.process(uploaded_file)
         else:
-            st.error("Only PDF and DOCX files are supported.")
+            st.error("Unsupported file format. Please upload PDF or DOCX.")
             return ""
+        return text.strip()
     except Exception as e:
-        st.error(f"Error parsing CV: {str(e)}")
+        st.error(f"Could not read file: {e}")
         return ""
-    return text.strip()
 
-# =============================================
-# LLM HELPERS — Using your exact AzureOpenAI initialization (hard-coded)
-# =============================================
-def analyze_cv(cv_text):
-    client = AzureOpenAI(
-        api_key=AZURE_OPENAI_API_KEY,
-        api_version=AZURE_API_VERSION,
-        azure_endpoint=AZURE_ENDPOINT
+# ────────────────────────────────────────────────
+#  2. Analyze CV → summary + suggestions
+# ────────────────────────────────────────────────
+
+def analyze_cv(cv_text: str) -> tuple[str, str]:
+    if not cv_text.strip():
+        return "", ""
+
+    # Summary
+    prompt_summary = (
+        "Summarize this CV in 4-6 professional sentences, total max 150 words. "
+        "Highlight key experience, skills, and career goals.\n\n"
+        "CV: " + cv_text
     )
-    truncated = cv_text[:6000]
-    summary = client.chat.completions.create(
-        model=AZURE_MODEL,
-        messages=[{"role": "user", "content": f"Summarize this CV in 4-6 professional sentences. Highlight key experience, skills, and career goals.\nCV:\n{truncated}"}],
-        max_tokens=300, temperature=0.7
-    ).choices[0].message.content.strip()
-    
-    suggestions = client.chat.completions.create(
-        model=AZURE_MODEL,
-        messages=[{"role": "user", "content": f"Give 5 concrete, actionable suggestions to improve this CV for tech/job applications (bullet points).\nFocus on keywords, achievements, structure.\nCV:\n{truncated}"}],
-        max_tokens=400, temperature=0.7
-    ).choices[0].message.content.strip()
-    return summary, suggestions
+    cv_summary = generate_text(prompt_summary, max_tokens=200)
 
-def generate_greeting(mentor_row, cv_summary):
-    client = AzureOpenAI(
-        api_key=AZURE_OPENAI_API_KEY,
-        api_version=AZURE_API_VERSION,
-        azure_endpoint=AZURE_ENDPOINT
+    # Suggestions
+    prompt_suggestions = (
+        "Give exactly 5 concrete, actionable suggestions to improve this CV for tech/job applications. "
+        "Use bullet points. Focus on keywords, achievements, structure. "
+        "Each suggestion should be max 50 words.\n\n"
+        "CV: " + cv_text
     )
-    prompt = f"""Write a short, warm, professional first-message (max 5 sentences) to invite {mentor_row['name']} for a 15-min virtual coffee chat.
+    cv_suggestions = generate_text(prompt_suggestions, max_tokens=200)
 
-Mentor: {mentor_row['name']}, {mentor_row['job_title']}
-Mentor summary: {mentor_row['summary']}
+    return cv_summary, cv_suggestions
 
-My background summary: {cv_summary if cv_summary else 'Aspiring professional in tech with strong interest in career growth.'}
-
-Tone: respectful, concise, genuine. End with a clear call-to-action."""
-    
+# ────────────────────────────────────────────────
+#  3. Load jobs / profiles
+# ────────────────────────────────────────────────
+#@st.cache_data
+def load_jobs() -> pd.DataFrame:
+    path = "jobs.csv"
+    if not os.path.exists(path):
+        st.error("jobs.csv not found. Please load sample data jobs.csv")
+        return pd.DataFrame(columns=["id","company","title","location","description","link"])
     try:
-        return client.chat.completions.create(
-            model=AZURE_MODEL,
-            messages=[{"role": "system", "content": "You are the candidate to seek jobs and advices from mentors."},{"role": "user", "content": prompt}],
-            max_tokens=220, temperature=0.8
-        ).choices[0].message.content.strip()
-    except Exception:
-        return f"Hi {mentor_row['name']}, I'd love to connect for a quick coffee chat about my career path. Available next week?"
+        df = pd.read_csv(path)
+        required = {"id","company","title","location","description","link"}
+        if not required.issubset(df.columns):
+            st.warning("jobs.csv is missing some expected columns")
+        return df
+    except Exception as e:
+        st.error(f"Error reading jobs.csv: {e}")
+        return pd.DataFrame()
 
-# =============================================
-# EMBEDDING MODEL
-# =============================================
-@st.cache_resource
-def get_embedding_model():
-    return SentenceTransformer('all-MiniLM-L6-v2')
-
-# =============================================
-# MAIN APP
-# =============================================
-uploaded_file = st.file_uploader("📄 Upload your CV (PDF or DOCX)", type=["pdf", "docx"], help="Your data is processed locally — never stored.")
-
-cv_text = ""
-cv_summary = ""
-
-if uploaded_file:
-    cv_text = parse_cv(uploaded_file)
-    if cv_text:
-        st.success(f"✅ CV parsed successfully ({len(cv_text.split())} words)")
+#@st.cache_data
+def load_profiles() -> pd.DataFrame:
+    path = "profiles.json"
+    if not os.path.exists(path):
+        st.error("profiles.json not found. Please load sample data profiles.json")
+        return pd.DataFrame(columns=["public_identifier","full_name","country","city","headline","summary"])
+    try:
+        df = pd.read_json(path, lines=True)
+        text_cols = ['headline', 'summary', 'name', 'country', 'city', 'id']
         
-        with st.spinner("Analyzing CV with Azure OpenAI..."):
-            cv_summary, suggestions = analyze_cv(cv_text)
-        
-        col_ana1, col_ana2 = st.columns(2)
-        with col_ana1:
-            st.subheader("📊 Analysis")
-            st.markdown(cv_summary)
-        with col_ana2:
-            st.subheader("💡 Suggestions to improve CV")
-            st.markdown(suggestions)
+        for col in text_cols:
+            if col in df.columns:
+                df[col] = df[col].astype('string').fillna('')
 
-        # =============================================
-        # SEMANTIC MATCHING
-        # =============================================
-        model = get_embedding_model()
-        
-        df_jobs = load_jobsdb()
-        df_jobs["full_text"] = df_jobs.apply(lambda row: f"{row['title']} at {row['company']} in {row['location']}. {row['summary']}", axis=1)
-        job_embeddings = model.encode(df_jobs["full_text"].tolist(), convert_to_tensor=True)
-        cv_embedding = model.encode(cv_text, convert_to_tensor=True)
-        df_jobs["match_score"] = (util.cos_sim(cv_embedding, job_embeddings)[0].cpu().numpy() * 100).round(2)
-        df_jobs = df_jobs.sort_values("match_score", ascending=False).reset_index(drop=True)
-        
-        df_mentors = load_linkedin()
-        df_mentors["full_text"] = df_mentors.apply(lambda row: f"{row['name']} {row['job_title']}. {row['summary']}", axis=1)
-        mentor_embeddings = model.encode(df_mentors["full_text"].tolist(), convert_to_tensor=True)
-        df_mentors["match_score"] = (util.cos_sim(cv_embedding, mentor_embeddings)[0].cpu().numpy() * 100).round(2)
-        df_mentors = df_mentors.sort_values("match_score", ascending=False).reset_index(drop=True)
+        df = df.rename(columns={"public_identifier": "id", "full_name": "name"})
+    
+        required = {"id","name","country","city","headline","summary"}
+        if not required.issubset(df.columns):
+            st.warning("profiles.json is missing some expected columns")
+        return df
+    except Exception as e:
+        st.error(f"Error reading profiles.json: {e}")
+        return pd.DataFrame()
 
-        st.markdown("---")
-        left_col, right_col = st.columns([1, 1], gap="large")
+# ────────────────────────────────────────────────
+#  4. Semantic matching
+# ────────────────────────────────────────────────
 
-        with left_col:
-            st.subheader("🔍 Job Matches on JobsDB")
-            st.caption("Top matches based on semantic similarity")
-            jobs_per_page = 10
-            if "job_page" not in st.session_state:
-                st.session_state.job_page = 0
-            total_jobs = len(df_jobs)
-            start_idx = st.session_state.job_page * jobs_per_page
-            end_idx = start_idx + jobs_per_page
-            page_jobs = df_jobs.iloc[start_idx:end_idx]
-            for _, job in page_jobs.iterrows():
-                with st.container(border=True):
-                    st.write(f"**{job['title']}**")
-                    st.write(f"**{job['company']}** • {job['location']}")
-                    st.write(job['summary'][:220] + "..." if len(job['summary']) > 220 else job['summary'])
-                    st.write(f"**Match Score: {job['match_score']:.2f}%**")
-                    st.link_button("🔗 View on JobsDB", job['link'], use_container_width=True)
-            pcol1, _, pcol3 = st.columns([1, 2, 1])
-            with pcol1:
-                if st.button("← Previous", key="jobs_prev", disabled=st.session_state.job_page == 0):
-                    st.session_state.job_page -= 1
-                    st.rerun()
-            with pcol3:
-                if st.button("Next →", key="jobs_next", disabled=end_idx >= total_jobs):
-                    st.session_state.job_page += 1
-                    st.rerun()
-            st.caption(f"Page {st.session_state.job_page + 1} of {(total_jobs - 1) // jobs_per_page + 1}")
+def match_jobs(cv_summary: str, job_interest: str, df_jobs: pd.DataFrame) -> pd.DataFrame:
+    if df_jobs.empty or not cv_summary.strip():
+        return pd.DataFrame()
 
-        with right_col:
-            st.subheader("👥 Career Path Mentors on LinkedIn")
-            st.caption("People who have walked your path — reach out!")
-            mentors_per_page = 10
-            if "mentor_page" not in st.session_state:
-                st.session_state.mentor_page = 0
-            if "show_greeting" not in st.session_state:
-                st.session_state.show_greeting = {}
-            if "greetings" not in st.session_state:
-                st.session_state.greetings = {}
-            
-            total_mentors = len(df_mentors)
-            start_idx_m = st.session_state.mentor_page * mentors_per_page
-            end_idx_m = start_idx_m + mentors_per_page
-            page_mentors = df_mentors.iloc[start_idx_m:end_idx_m]
-            
-            for idx, mentor in page_mentors.iterrows():
-                mentor_id = f"mentor_{start_idx_m + idx}"
-                with st.container(border=True):
-                    st.write(f"**{mentor['name']}**")
-                    st.write(f"*{mentor['job_title']}*")
-                    st.write(mentor['summary'][:180] + "..." if len(mentor['summary']) > 180 else mentor['summary'])
-                    st.write(f"**Match Score: {mentor['match_score']:.2f}%**")
-                    st.link_button("🔗 View LinkedIn", mentor['link'], use_container_width=True)
-                    
-                    btn_label = "☕ Coffee chat Invite" if not st.session_state.show_greeting.get(mentor_id, False) else "Hide Message"
-                    if st.button(btn_label, key=f"invite_{mentor_id}", use_container_width=True):
-                        st.session_state.show_greeting[mentor_id] = not st.session_state.show_greeting.get(mentor_id, False)
-                        if st.session_state.show_greeting[mentor_id] and mentor_id not in st.session_state.greetings:
-                            with st.spinner("Crafting personalized message with Azure OpenAI..."):
-                                greeting = generate_greeting(mentor, cv_summary)
-                                st.session_state.greetings[mentor_id] = greeting
-                    if st.session_state.show_greeting.get(mentor_id, False):
-                        st.info(st.session_state.greetings.get(mentor_id, "Message ready"))
-            
-            mpcol1, _, mpcol3 = st.columns([1, 2, 1])
-            with mpcol1:
-                if st.button("← Previous", key="mentors_prev", disabled=st.session_state.mentor_page == 0):
-                    st.session_state.mentor_page -= 1
-                    st.rerun()
-            with mpcol3:
-                if st.button("Next →", key="mentors_next", disabled=end_idx_m >= total_mentors):
-                    st.session_state.mentor_page += 1
-                    st.rerun()
-            st.caption(f"Page {st.session_state.mentor_page + 1} of {(total_mentors - 1) // mentors_per_page + 1}")
+    df = df_jobs.copy()
 
-else:
-    st.info("👆 Upload your CV to see personalized job matches and mentor suggestions")
+    # Create combined text for jobs
+    df["combined_text"] = (
+        df["title"].fillna("") + " " +
+        df["description"].fillna("")
+    ).str.strip()
 
-st.markdown("---")
-st.caption("CareerBridge AI • Azure OpenAI key hard-coded • pypdf + docx2txt • Match scores to 2 d.p.")
+    # Embeddings
+    cv_emb        = embedder.encode(cv_summary, convert_to_tensor=True)
+    interest_emb  = embedder.encode(job_interest, convert_to_tensor=True)
+    query_emb     = (cv_emb + interest_emb) / 2   # simple average
+
+    job_embs      = embedder.encode(df["combined_text"].tolist(), convert_to_tensor=True)
+
+    cos_scores = util.cos_sim(query_emb, job_embs)[0].cpu().numpy()
+    df["match_score"] = np.round(cos_scores * 100, 2)
+
+    # Sort & take top 10
+    df = df.sort_values("match_score", ascending=False).head(MAX_JOBS).reset_index(drop=True)
+
+    # Generate "why suitable" reasoning
+    df["reason"] = ""
+    df["summary"] = ""
+    for i, row in df.iterrows():
+
+        # replace job description with a short summary
+        prompt_job_summary = (
+            f"Summarize below job in max 30 words.\n\n"
+            f"Job: {row["description"][:500]}\n"
+        )
+        job_summary = generate_text(prompt_job_summary, temperature=0.7)
+        df.at[i, "summary"] = job_summary
+
+        prompt = (
+            f"Why this job is suitable for me? Comment within 50 words.\n\n"
+            f"Job title: {row['title']}\n"
+            f"Job description: {job_summary}\n"
+            f"My CV summary: {cv_summary}\n"
+            f"My job interests: {job_interest}\n"
+        )
+        df.at[i, "reason"] = generate_text(prompt, max_tokens=220, temperature=0.7)
+
+    return df
+
+def match_profiles(cv_summary: str, job_interest: str, df_profiles: pd.DataFrame) -> pd.DataFrame:
+    if df_profiles.empty or not cv_summary.strip():
+        return pd.DataFrame()
+
+    df = df_profiles.copy()
+
+    df["combined_text"] = (
+        df["headline"].fillna("") + " " +
+        df["summary"].fillna("")
+    ).str.strip()
+
+    cv_emb       = embedder.encode(cv_summary, convert_to_tensor=True)
+    interest_emb = embedder.encode(job_interest, convert_to_tensor=True)
+    query_emb    = (cv_emb + interest_emb) / 2
+
+    profile_embs = embedder.encode(df["combined_text"].tolist(), convert_to_tensor=True)
+
+    cos_scores = util.cos_sim(query_emb, profile_embs)[0].cpu().numpy()
+    df["match_score"] = np.round(cos_scores * 100, 2)
+
+    df = df.sort_values("match_score", ascending=False).head(MAX_PROFILES).reset_index(drop=True)
+
+    # Generate reason & greeting for top 10
+    df["reason"]   = ""
+    df["greeting"] = ""
+
+    for i, row in df.head(MAX_PROFILES).iterrows():
+        # Reason
+        prompt_reason = (
+            f"Why this mentor can help me in my career path?\n"
+            f"Mentor headline: {row['headline']}\n"
+            f"Mentor summary: {row.get('summary','')[:500]}\n"
+            f"My CV summary: {cv_summary}\n"
+            f"My job interests: {job_interest}"
+        )
+        df.at[i, "reason"] = generate_text(prompt_reason, max_tokens=100, temperature=0.7)
+
+        # Greeting
+        prompt_greeting = (
+            f"Write a short, warm, professional first-message (max 5 sentences) "
+            f"to invite this mentor for a 15-min virtual coffee chat.\n"
+            f"Mentor headline: {row['headline']}\n"
+            f"Mentor summary: {row.get('summary','')[:800]}\n\n"
+            f"My CV summary: {cv_summary}\n"
+            f"My job interests: {job_interest}\n\n"
+            "Tone: respectful, concise, genuine. End with a clear call-to-action."
+        )
+        df.at[i, "greeting"] = generate_text(prompt_greeting, max_tokens=100, temperature=0.7)
+
+    return df
+
+# ────────────────────────────────────────────────
+#  MAIN STREAMLIT APP
+# ────────────────────────────────────────────────
+
+def main():
+
+    # ── Header ───────────────────────────────────────
+    st.title("🌉 CareerBridge AI")
+    st.header("Bridge the gap to your dream career")
+    st.markdown(
+        "Upload your CV, tell me about your interests in searching jobs. "
+        "I will find **Jobs** and **Mentors** from LinkedIn for you."
+    )
+    st.divider()
+
+    # ── Inputs ───────────────────────────────────────
+    col_left, col_right = st.columns([5,5])
+
+    with col_left:
+        st.subheader("Step 1: 📄 Upload your CV")
+        uploaded_file = st.file_uploader(
+            "PDF or DOCX only",
+            type=["pdf", "docx"],
+            help="Upload your resume / CV"
+        )
+
+    with col_right:
+        st.subheader("Step 2: 🧭 Your job Interest")
+        job_interest = st.text_area(
+            label="Describe the roles, industries, technologies or locations you're interested in",
+            height=140,
+            placeholder="Example:\n• AI / Machine Learning Engineer\n• Remote or Hong Kong\n• Python, PyTorch, LLM experience"
+        ).strip()
+
+    if not uploaded_file or not job_interest:
+        st.info("Please upload your CV and describe your job interests to start matching.")
+        st.stop()
+
+    st.divider()
+
+    # ── Processing ───────────────────────────────────
+    with st.spinner("Reading CV ..."):
+        cv_text = parse_cv(uploaded_file)
+
+    if not cv_text:
+        st.stop()
+
+    # ── CV Analysis & Suggestions ────────────────────
+    with st.spinner("Analyzing your CV ..."):
+        cv_summary, cv_suggestions = analyze_cv(cv_text)
+
+    col1, col2 = st.columns([5,5])
+
+    with col1:
+        st.subheader("📊 Analysis")
+        st.markdown(cv_summary or "*No summary generated*")
+
+    with col2:
+        st.subheader("💡 Suggestions to improve CV")
+        st.markdown(cv_suggestions or "*No suggestions generated&")
+
+    st.divider()
+
+    # ── Load datasets ────────────────────────────────
+    with st.spinner("Loading LinkedIn datasets ..."):
+        df_jobs     = load_jobs()
+        df_profiles = load_profiles()
+
+    if df_jobs.empty and df_profiles.empty:
+        st.error("No job or profile data available. Cannot perform matching.")
+        st.stop()
+
+    # ── Matching ─────────────────────────────────────
+    with st.spinner("Finding best job & mentor matches ... (this may take 30–90 seconds)"):
+        df_matched_jobs     = match_jobs(cv_summary, job_interest, df_jobs)
+        df_matched_profiles = match_profiles(cv_summary, job_interest, df_profiles)
+
+    # ── Results ──────────────────────────────────────
+    col_jobs, col_mentors = st.columns([5,5])
+
+    with col_jobs:
+        st.subheader("🔍 Job Matches on LinkedIn")
+
+        if df_matched_jobs.empty:
+            st.info("No job matches found.")
+        else:
+            for _, row in df_matched_jobs.iterrows():
+                with st.expander(f"{row['title']} - Scores: {np.round(row['match_score'], 2)}%"):
+                    st.markdown(f"**Company:** {row.get('company','–')}")
+                    st.markdown(f"**Location:** {row.get('location','–')}")
+                    st.markdown(f"**Description:**\n{row.get('summary','–')}")
+                    st.markdown(f"**Why suitable?**\n{row.get('reason','–')}")
+                    st.link_button("🔗 View LinkedIn Job", row['link'], use_container_width=False)
+
+    with col_mentors:
+        st.subheader("👥 Career Path Mentors on LinkedIn")
+
+        if df_matched_profiles.empty:
+            st.info("No mentor matches found.")
+        else:
+            for i, row in df_matched_profiles.iterrows():
+                with st.expander(f"{row['name']} - Scores: {np.round(row['match_score'], 2)}%"):
+                    st.markdown(f"**Location:** {row.get('city','–')}, {row.get('country','–')}")
+                    st.markdown(f"**Job:**\n{row.get('headline','–')}")
+                    st.markdown(f"**Summary:**\n{row.get('summary','–')}")
+                    st.markdown(f"**Why suggest this mentor?**: {row.get('reason','–')}")
+                    st.link_button("🔗 View LinkedIn Profile", f"https://www.linkedin.com/in/{row['id']}/", use_container_width=False)
+                    st.markdown(f"**☕ Coffee Chat Invite**:\n\n{row.get('greeting','–')}")
+
+if __name__ == "__main__":
+    main()
