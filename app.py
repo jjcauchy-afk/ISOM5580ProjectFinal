@@ -248,12 +248,12 @@ def match_profiles(cv_summary: str, job_interest: str, df_profiles: pd.DataFrame
             f"Summarize below profile in max 30 words.\n\n"
             f"Job: {row["summary"][:500]}\n"
         )
-        profile_summary = generate_text(prompt_job_summary, temperature=0.7)
+        profile_summary = generate_text(prompt_profile_summary, temperature=0.7)
         df.at[i, "summary"] = profile_summary
 
         # Reason
         prompt_reason = (
-            f"Why this mentor can help me in my career path?\n"
+            f"Why this mentor can help me in my career path? comment in max 50 words\n"
             f"Mentor headline: {row['headline']}\n"
             f"Mentor summary: {profile_summary}\n"
             f"My CV summary: {cv_summary}\n"
@@ -265,8 +265,9 @@ def match_profiles(cv_summary: str, job_interest: str, df_profiles: pd.DataFrame
         prompt_greeting = (
             f"Write a short, warm, professional first-message (max 5 sentences) "
             f"to invite this mentor for a 15-min virtual coffee chat.\n"
-            f"Mentor headline: {row['headline']}\n"
-            f"Mentor summary: {row.get('summary','')[:800]}\n\n"
+            f"Mentor's name: {row['name']}\n"
+            f"Mentor's job: {row['headline']}\n"
+            f"Mentor's summary: {row.get('summary','')}\n\n"
             f"My CV summary: {cv_summary}\n"
             f"My job interests: {job_interest}\n\n"
             "Tone: respectful, concise, genuine. End with a clear call-to-action."
