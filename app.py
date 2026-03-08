@@ -22,7 +22,7 @@ AZURE_MODEL             = "gpt-4o-mini"
 SEMANTIC_MODEL          = "all-MiniLM-L6-v2"
 
 MAX_JOBS                = 10
-MAX_PROFILES            = 10
+MAX_PROFILES            = 5
 
 RANDOM_JOBS             = 100
 RANDOM_PROFILES         = 100
@@ -383,6 +383,7 @@ def main():
                     st.markdown(f"**Summary:**\n{row.get('summary','–')}")
                     st.markdown(f"**Why suggest this mentor?**: {row.get('reason','–')}")
                     st.link_button("🔗 View LinkedIn Profile", f"https://www.linkedin.com/in/{row['id']}/", use_container_width=False)
+                    st.divider()
                     st.markdown(f"**☕ Coffee Chat Invite**:\n\n{row.get('greeting','–')}")
 
 if __name__ == "__main__":
