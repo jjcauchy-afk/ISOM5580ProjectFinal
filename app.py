@@ -325,7 +325,7 @@ def main():
             start_time = time.time()  # Start timer
             cv_text = parse_cv(uploaded_file)
             elapsed_time = time.time() - start_time  # Calculate elapsed time
-            st.success(f"CV processed in {elapsed_time:.2f} seconds.")
+            #st.success(f"CV processed in {elapsed_time:.2f} seconds.")
 
         if not cv_text:
             st.stop()
@@ -362,7 +362,7 @@ def main():
             )
             elapsed_time = time.time() - start_time  # Calculate elapsed time
             elapsed_time = time.time() - start_time  # Calculate elapsed time
-            st.success(f"LinkedIn datasets loaded in {elapsed_time:.2f} seconds.")
+            #st.success(f"LinkedIn datasets loaded in {elapsed_time:.2f} seconds.")
 
         if df_jobs.empty and df_profiles.empty:
             st.error("No job or profile data available. Cannot perform matching.")
