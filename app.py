@@ -312,6 +312,7 @@ def main():
         ).strip()
 
     # Display the button regardless of uploaded file or job interest
+    st.subheader("Step 3: Process")
     if st.button("Process CV and Find Matches"):
         if not uploaded_file:
             st.info("Please upload your CV to start matching.")
