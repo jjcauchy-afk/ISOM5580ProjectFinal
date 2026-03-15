@@ -1,0 +1,79 @@
+SARAH JOHNSON
+sarah.johnson@email.com | (555) 987-6543 | LinkedIn: linkedin.com/in/sarahjohnson | San Francisco, CA
+
+PROFESSIONAL SUMMARY
+Results-driven Data Scientist with 5+ years of experience building and deploying machine learning models in production. Expertise in deep learning, NLP, and statistical analysis. Passionate about leveraging data to solve complex business problems and drive decision-making.
+
+PROFESSIONAL EXPERIENCE
+
+Senior Data Scientist
+Analytics Pro, San Francisco, CA | March 2021 - Present
+• Developed and deployed 15+ machine learning models processing 50M+ data points daily
+• Built natural language processing system for customer feedback analysis, improving customer satisfaction score by 25%
+• Implemented automated feature engineering pipeline reducing model development time by 60%
+• Led data strategy initiative resulting in $2M annual cost savings
+
+Data Scientist
+Cloud Analytics Inc, San Francisco, CA | June 2019 - February 2021
+• Built predictive models for customer churn, achieving 92% accuracy
+• Implemented A/B testing framework supporting 200+ experiments per month
+• Developed time series forecasting model for demand prediction
+• Collaborated with engineering team to productionize models using TensorFlow Serving
+
+Machine Learning Engineer
+Tech Innovations LLC, Mountain View, CA | September 2018 - May 2019
+• Trained and optimized deep learning models for image classification
+• Implemented data pipelines using Apache Spark processing 1TB+ daily data
+• Conducted statistical analysis and hypothesis testing for product decisions
+
+Data Analyst
+Digital Marketing Solutions, San Francisco, CA | July 2017 - August 2018
+• Analyzed marketing campaign performance and customer behavior patterns
+• Created dashboards and reports using Tableau for stakeholder communication
+• Built SQL queries and data models supporting business intelligence
+
+EDUCATION
+
+Master of Science in Machine Learning
+Tech Institute, San Francisco, CA | Graduated May 2017
+Focus: Deep Learning, Natural Language Processing
+
+Bachelor of Science in Statistics
+State University, Boston, MA | Graduated May 2015
+GPA: 3.7/4.0
+
+TECHNICAL SKILLS
+
+Programming: Python, R, SQL, Scala, Java
+Machine Learning: TensorFlow, PyTorch, Scikit-learn, XGBoost, LightGBM
+NLP: NLTK, spaCy, BERT, Transformers, GPT models
+Big Data: Apache Spark, Hadoop, Hive, Kafka
+Cloud Platforms: AWS (SageMaker, EC2, S3), Google Cloud (BigQuery), Azure ML
+Visualization: Tableau, Matplotlib, Plotly, Seaborn
+Tools: Jupyter, Git, Docker, Kubernetes, MLflow
+
+CERTIFICATIONS
+
+AWS Certified Machine Learning - Specialty | Issued: November 2022
+Google Cloud Professional Data Engineer | Issued: June 2021
+
+PUBLICATIONS & SPEAKING
+
+"Scaling NLP Models in Production" - Published in AI Magazine, January 2023
+Speaker: PyData Conference 2022 - "Real-Time ML Systems"
+
+TECHNICAL ACHIEVEMENTS
+
+Customer Segmentation Model
+• Developed unsupervised learning model segmenting 500K+ customers into 8 distinct groups
+• Improved targeted marketing campaign performance by 40%
+• Tech: Python, Scikit-learn, PostgreSQL
+
+Fraud Detection System
+• Built real-time fraud detection system protecting $100M+ in transactions
+• Achieved 98.5% recall with <0.5% false positive rate
+• Tech: Python, TensorFlow, Kafka, Redis
+
+LANGUAGES
+
+English (Native), French (Intermediate), Mandarin (Basic)

@@ -1,0 +1,78 @@
+MICHAEL CHEN
+michael.chen@email.com | (555) 246-8135 | LinkedIn: linkedin.com/in/michaelchen | Austin, TX
+
+PROFESSIONAL SUMMARY
+Innovative DevOps Engineer and Systems Architect with 6+ years of experience designing and implementing highly available cloud infrastructure. Expertise in Kubernetes, containerization, and infrastructure-as-code. Strong focus on automation, monitoring, and operational excellence.
+
+PROFESSIONAL EXPERIENCE
+
+DevOps Engineer (Senior)
+Cloud Systems Inc, Austin, TX | August 2021 - Present
+• Architect and manage Kubernetes clusters supporting 50+ microservices and 10M+ daily requests
+• Implemented infrastructure-as-code using Terraform, managing 200+ cloud resources
+• Designed disaster recovery and backup strategy achieving 99.99% uptime SLA
+• Reduced infrastructure costs by 35% through resource optimization and autoscaling
+
+DevOps Engineer
+Platform Technologies, Austin, TX | January 2020 - July 2021
+• Managed CI/CD pipelines using Jenkins and GitLab CI processing 500+ deployments/day
+• Implemented comprehensive monitoring and alerting using Prometheus and Grafana
+• Migrated monolithic applications to containerized microservices architecture
+• Handled on-call rotation, responding to incidents with average resolution time of 15 minutes
+
+Systems Administrator
+Enterprise Solutions Corp, Dallas, TX | June 2018 - December 2019
+• Managed on-premises Linux and Windows servers supporting 500+ users
+• Implemented configuration management using Ansible and Puppet
+• Maintained security compliance and performed regular audits
+• Automated routine tasks, reducing manual work by 80%
+
+Junior Systems Administrator
+TechServe Inc, Dallas, TX | August 2017 - May 2018
+• Provided technical support for IT infrastructure
+• Assisted with server maintenance and patching
+• Documented processes and standard operating procedures
+
+EDUCATION
+
+Bachelor of Science in Information Technology
+State University, Austin, TX | Graduated May 2017
+
+TECHNICAL SKILLS
+
+Cloud Platforms: AWS (EC2, ECS, EKS, RDS, CloudFormation), Google Cloud (Compute, Kubernetes Engine), Azure
+Containerization: Docker, Kubernetes, Docker Compose, Helm
+Infrastructure-as-Code: Terraform, CloudFormation, Ansible, Puppet
+CI/CD: Jenkins, GitLab CI, GitHub Actions, ArgoCD
+Monitoring & Logging: Prometheus, Grafana, ELK Stack, CloudWatch, New Relic
+Scripting: Bash, Python, PowerShell, Go
+Databases: PostgreSQL, MySQL, MongoDB, Redis
+Version Control: Git, GitHub, GitLab
+
+CERTIFICATIONS
+
+Kubernetes Application Developer (CKAD) | Issued: September 2023
+Certified Kubernetes Administrator (CKA) | Issued: March 2023
+AWS Certified Solutions Architect - Associate | Issued: July 2021
+
+MAJOR ACHIEVEMENTS
+
+Zero-Downtime Migration
+• Led migration of legacy applications to Kubernetes with zero downtime
+• Implemented blue-green deployment strategy and automated rollback mechanisms
+• Reduced deployment risk and enabled continuous delivery
+
+Infrastructure Cost Optimization
+• Analyzed and optimized cloud resource utilization
+• Implemented spot instances and reserved capacity planning
+• Achieved $500K annual savings
+
+Incident Response System
+• Built automated incident detection and response system
+• Integrated monitoring, alerting, and runbook automation
+• Reduced mean time to resolution by 70%
+
+OPEN SOURCE CONTRIBUTIONS
+
+Active contributor to Kubernetes and Docker projects
+Maintainer of Terraform AWS modules used by 1000+ organizations

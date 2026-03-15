@@ -1,5 +1,3 @@
-# app.py
-
 import streamlit as st
 import os
 import pandas as pd
@@ -9,49 +7,88 @@ import numpy as np
 import pypdf
 import docx2txt
 from pathlib import Path
-import time
-#from dotenv import load_dotenv
 
 # ────────────────────────────────────────────────
-#  SECRETS / CONFIG  (Change this before production!)
+#  CSS (LEAVE BUTTON COLOR AS-IS - NO CHANGE)
 # ────────────────────────────────────────────────
-
-#load_dotenv()
-
-#AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
-#AZURE_ENDPOINT = os.getenv("AZURE_ENDPOINT")
-#AZURE_API_VERSION = os.getenv("AZURE_API_VERSION")
-#AZURE_MODEL = os.getenv("AZURE_MODEL")
-AZURE_OPENAI_API_KEY = st.secrets["AZURE_OPENAI_API_KEY"]
-AZURE_ENDPOINT = st.secrets["AZURE_ENDPOINT"]
-AZURE_API_VERSION = st.secrets["AZURE_API_VERSION"]
-AZURE_MODEL = st.secrets["AZURE_MODEL"]
-
-SEMANTIC_MODEL          = "all-MiniLM-L6-v2"
-
-MAX_JOBS                = 10
-MAX_PROFILES            = 5
-
-RANDOM_JOBS             = 100
-RANDOM_PROFILES         = 100
+def add_highlighted_button_css():
+    st.markdown("""
+    <style>
+    div[data-testid="stSidebar"] button {
+        background-color: #f02d2d !important;
+        color: white !important;
+        margin-bottom: 8px !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # ────────────────────────────────────────────────
-#  Initialize clients & models (cached)
+#  CONFIG
 # ────────────────────────────────────────────────
+AZURE_OPENAI_API_KEY = st.secrets.get("AZURE_OPENAI_API_KEY", "")
+AZURE_ENDPOINT = st.secrets.get("AZURE_ENDPOINT", "")
+AZURE_API_VERSION = st.secrets.get("AZURE_API_VERSION", "2024-02-15-preview")
+AZURE_MODEL = st.secrets.get("AZURE_MODEL", "")
 
-st.set_page_config(
-    page_title = "CareerBridge AI",
-    page_icon = "🌉",
-    layout = "wide"
-)
+SEMANTIC_MODEL = "all-MiniLM-L6-v2"
+MAX_JOBS = 10
+MAX_PROFILES = 5
+RANDOM_JOBS = 100
+RANDOM_PROFILES = 100
 
+# ────────────────────────────────────────────────
+#  SESSION STATE (KEEPS CV WHEN SWITCHING PAGES)
+# ────────────────────────────────────────────────
+st.set_page_config(page_title="CareerBridge AI", page_icon="🌉", layout="wide")
+
+if 'cv_text' not in st.session_state:
+    st.session_state.cv_text = ""
+if 'cv_summary' not in st.session_state:
+    st.session_state.cv_summary = ""
+if 'cv_suggestions' not in st.session_state:
+    st.session_state.cv_suggestions = ""
+if 'job_interest' not in st.session_state:
+    st.session_state.job_interest = ""
+if 'matched_jobs' not in st.session_state:
+    st.session_state.matched_jobs = pd.DataFrame()
+if 'matched_profiles' not in st.session_state:
+    st.session_state.matched_profiles = pd.DataFrame()
+if 'df_jobs' not in st.session_state:
+    st.session_state.df_jobs = pd.DataFrame()
+if 'df_profiles' not in st.session_state:
+    st.session_state.df_profiles = pd.DataFrame()
+if 'current_page' not in st.session_state:
+    st.session_state.current_page = "upload_cv"
+
+# ────────────────────────────────────────────────
+#  AUTO-RESET WHEN NEW CV OR NEW JOB INTEREST
+# ────────────────────────────────────────────────
+if "last_cv" not in st.session_state:
+    st.session_state.last_cv = ""
+if "last_interest" not in st.session_state:
+    st.session_state.last_interest = ""
+
+current_cv = st.session_state.cv_text
+current_interest = st.session_state.job_interest
+
+if current_cv != st.session_state.last_cv or current_interest != st.session_state.last_interest:
+    st.session_state.cv_suggestions = ""
+    st.session_state.matched_jobs = pd.DataFrame()
+    st.session_state.matched_profiles = pd.DataFrame()
+    st.session_state.df_jobs = pd.DataFrame()
+    st.session_state.df_profiles = pd.DataFrame()
+    st.session_state.last_cv = current_cv
+    st.session_state.last_interest = current_interest
+
+# ────────────────────────────────────────────────
+#  MODELS
+# ────────────────────────────────────────────────
 @st.cache_resource
 def get_openai_client():
-    return AzureOpenAI(
-        api_key=AZURE_OPENAI_API_KEY,
-        azure_endpoint=AZURE_ENDPOINT,
-        api_version=AZURE_API_VERSION
-    )
+    if not AZURE_OPENAI_API_KEY or not AZURE_ENDPOINT:
+        st.error("Azure OpenAI credentials missing!")
+        return None
+    return AzureOpenAI(api_key=AZURE_OPENAI_API_KEY, azure_endpoint=AZURE_ENDPOINT, api_version=AZURE_API_VERSION)
 
 @st.cache_resource
 def get_semantic_model():
@@ -61,10 +98,11 @@ client = get_openai_client()
 embedder = get_semantic_model()
 
 # ────────────────────────────────────────────────
-#  Helper: call Azure OpenAI chat completion
+#  HELPERS
 # ────────────────────────────────────────────────
-
 def generate_text(prompt: str, max_tokens: int = 800, temperature: float = 0.7) -> str:
+    if not client:
+        return ""
     try:
         response = client.chat.completions.create(
             model=AZURE_MODEL,
@@ -74,19 +112,13 @@ def generate_text(prompt: str, max_tokens: int = 800, temperature: float = 0.7) 
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        st.error(f"OpenAI API error: {e}")
+        st.error(f"OpenAI error: {e}")
         return ""
-
-# ────────────────────────────────────────────────
-#  1. Parse CV (PDF or DOCX)
-# ────────────────────────────────────────────────
 
 def parse_cv(uploaded_file) -> str:
     if uploaded_file is None:
         return ""
-
     file_ext = Path(uploaded_file.name).suffix.lower()
-
     try:
         if file_ext == ".pdf":
             reader = pypdf.PdfReader(uploaded_file)
@@ -94,336 +126,224 @@ def parse_cv(uploaded_file) -> str:
         elif file_ext in [".docx", ".doc"]:
             text = docx2txt.process(uploaded_file)
         else:
-            st.error("Unsupported file format. Please upload PDF or DOCX.")
+            st.error("Only PDF/DOCX")
             return ""
         return text.strip()
     except Exception as e:
-        st.error(f"Could not read file: {e}")
+        st.error(f"File read error: {e}")
         return ""
-
-# ────────────────────────────────────────────────
-#  2. Analyze CV → summary + suggestions
-# ────────────────────────────────────────────────
 
 def analyze_cv(cv_text: str) -> tuple[str, str]:
     if not cv_text.strip():
         return "", ""
+    prompt_sum = "Summarize this CV in 4-6 sentences, max 150 words.\n\nCV: " + cv_text
+    sum_txt = generate_text(prompt_sum, max_tokens=200)
 
-    # Summary
-    prompt_summary = (
-        "Summarize this CV in 4-6 professional sentences, total max 150 words. "
-        "Highlight key experience, skills, and career goals.\n\n"
-        "CV: " + cv_text
-    )
-    cv_summary = generate_text(prompt_summary, max_tokens=200)
+    prompt_sug = "Give exactly 5 actionable CV improvement points (bullet). Max 50 words each.\n\nCV: " + cv_text
+    sug_txt = generate_text(prompt_sug, max_tokens=200)
+    return sum_txt, sug_txt
 
-    # Suggestions
-    prompt_suggestions = (
-        "Give exactly 5 concrete, actionable suggestions to improve this CV for tech/job applications. "
-        "Use bullet points. Focus on keywords, achievements, structure. "
-        "Each suggestion should be max 50 words.\n\n"
-        "CV: " + cv_text
-    )
-    cv_suggestions = generate_text(prompt_suggestions, max_tokens=200)
-
-    return cv_summary, cv_suggestions
-
-# ────────────────────────────────────────────────
-#  3. Load jobs / profiles
-# ────────────────────────────────────────────────
-#@st.cache_data
-def load_jobs() -> pd.DataFrame:
+@st.cache_data
+def load_jobs_data():
     path = "jobs.csv"
     if not os.path.exists(path):
-        st.error("jobs.csv not found. Please load sample data jobs.csv")
-        return pd.DataFrame(columns=["id","company","title","location","description","link"])
+        st.warning("jobs.csv not found!")
+        return pd.DataFrame()
     try:
-        df = pd.read_csv(path)
-        df['description'] = df['description'].fillna('')
-        required = {"id","company","title","location","description","link"}
-        if not required.issubset(df.columns):
-            st.warning("jobs.csv is missing some expected columns")
-        return df
+        return pd.read_csv(path).fillna("")
     except Exception as e:
-        st.error(f"Error reading jobs.csv: {e}")
+        st.error(f"Jobs load error: {e}")
         return pd.DataFrame()
 
-#@st.cache_data
-def load_profiles() -> pd.DataFrame:
+@st.cache_data
+def load_profiles_data():
     path = "profiles.json"
     if not os.path.exists(path):
-        st.error("profiles.json not found. Please load sample data profiles.json")
-        return pd.DataFrame(columns=["public_identifier","full_name","country","city","headline","summary"])
+        st.warning("profiles.json not found!")
+        return pd.DataFrame()
     try:
         df = pd.read_json(path, lines=True)
-        text_cols = ['headline', 'summary', 'name', 'country', 'city', 'id']
-        
-        for col in text_cols:
-            if col in df.columns:
-                df[col] = df[col].astype('string').fillna('')
-
         df = df.rename(columns={"public_identifier": "id", "full_name": "name"})
-    
-        required = {"id","name","country","city","headline","summary"}
-        if not required.issubset(df.columns):
-            st.warning("profiles.json is missing some expected columns")
-        return df
+        return df.fillna("")
     except Exception as e:
-        st.error(f"Error reading profiles.json: {e}")
+        st.error(f"Profiles load error: {e}")
         return pd.DataFrame()
 
-# ────────────────────────────────────────────────
-#  4. Semantic matching
-# ────────────────────────────────────────────────
-
-def match_jobs(cv_summary: str, job_interest: str, df_jobs: pd.DataFrame) -> tuple[pd.DataFrame, float, float]:
-    if df_jobs.empty or not cv_summary.strip():
-        return pd.DataFrame(), 0.0, 0.0
-
+def match_jobs_auto(cv_summary, job_interest, df_jobs):
+    if df_jobs.empty or not cv_summary or not embedder:
+        return pd.DataFrame()
     df = df_jobs.copy()
-    df["combined_text"] = (
-        df["title"].fillna("") + " " +
-        df["description"].fillna("")
-    ).str.strip()
-
-    # Start timing for semantic search
-    start_semantic_time = time.time()
-
-    # Embeddings
+    df["combined_text"] = df["title"] + " " + df["description"]
     cv_emb = embedder.encode(cv_summary, convert_to_tensor=True)
-    interest_emb = embedder.encode(job_interest, convert_to_tensor=True)
-    query_emb = (cv_emb + interest_emb) / 2
-    job_embs = embedder.encode(df["combined_text"].tolist(), convert_to_tensor=True)
-
-    semantic_time = time.time() - start_semantic_time
-
-    cos_scores = util.cos_sim(query_emb, job_embs)[0].cpu().numpy()
-    df["match_score"] = np.round(cos_scores * 100, 2)
+    int_emb = embedder.encode(job_interest, convert_to_tensor=True) if job_interest else cv_emb
+    q_emb = (cv_emb + int_emb)/2
+    j_emb = embedder.encode(df["combined_text"].tolist(), convert_to_tensor=True)
+    scores = util.cos_sim(q_emb, j_emb)[0].cpu().numpy()
+    df["match_score"] = np.round(scores*100,2)
     df = df.sort_values("match_score", ascending=False).head(MAX_JOBS).reset_index(drop=True)
 
-    # Generate reasons and summaries
-    df["reason"] = ""
     df["summary"] = ""
-    total_openai_time = 0.0
-
+    df["reason"] = ""
     for i, row in df.iterrows():
-        start_openai_time = time.time()
-        
-        # OpenAI API calls made here
-        prompt_job_summary = (
-            f"Summarize below job in max 30 words.\n\n"
-            f"Job: {row['description'][:500]}\n"
-        )
-        job_summary = generate_text(prompt_job_summary, temperature=0.7)
-        total_openai_time += time.time() - start_openai_time
+        s = generate_text(f"Summarize job in 30 words:\n{row['description'][:500]}", temperature=0.6)
+        df.at[i,"summary"] = s
+        r = generate_text(f"Why fit? 50 words:\nJob: {row['title']}\n{s}\nMy CV: {cv_summary}\nMy interests: {job_interest}", max_tokens=220)
+        df.at[i,"reason"] = r
+    return df
 
-        df.at[i, "summary"] = job_summary
-        prompt = (f"Why this job is suitable for me? Comment within 50 words.\n\n"
-                  f"Job title: {row['title']}\n"
-                  f"Job description: {job_summary}\n"
-                  f"My CV summary: {cv_summary}\n"
-                  f"My job interests: {job_interest}\n")
-        df.at[i, "reason"] = generate_text(prompt, max_tokens=220, temperature=0.7)
-
-    return df, semantic_time, total_openai_time
-    
-def match_profiles(cv_summary: str, job_interest: str, df_profiles: pd.DataFrame) -> tuple[pd.DataFrame, float, float]:
-    if df_profiles.empty or not cv_summary.strip():
-        return pd.DataFrame(), 0.0, 0.0
-
+def match_profiles_auto(cv_summary, job_interest, df_profiles):
+    if df_profiles.empty or not cv_summary or not embedder:
+        return pd.DataFrame()
     df = df_profiles.copy()
-    df["combined_text"] = (
-        df["headline"].fillna("") + " " +
-        df["summary"].fillna("")
-    ).str.strip()
-
-    # Start timing for semantic search
-    start_semantic_time = time.time()
-
+    df["combined_text"] = df["headline"] + " " + df["summary"]
     cv_emb = embedder.encode(cv_summary, convert_to_tensor=True)
-    interest_emb = embedder.encode(job_interest, convert_to_tensor=True)
-    query_emb = (cv_emb + interest_emb) / 2
-    profile_embs = embedder.encode(df["combined_text"].tolist(), convert_to_tensor=True)
-
-    semantic_time = time.time() - start_semantic_time
-    
-    cos_scores = util.cos_sim(query_emb, profile_embs)[0].cpu().numpy()
-    df["match_score"] = np.round(cos_scores * 100, 2)
+    int_emb = embedder.encode(job_interest, convert_to_tensor=True) if job_interest else cv_emb
+    q_emb = (cv_emb + int_emb)/2
+    p_emb = embedder.encode(df["combined_text"].tolist(), convert_to_tensor=True)
+    scores = util.cos_sim(q_emb, p_emb)[0].cpu().numpy()
+    df["match_score"] = np.round(scores*100,2)
     df = df.sort_values("match_score", ascending=False).head(MAX_PROFILES).reset_index(drop=True)
 
-    # Generate reasons and greetings
+    df["summary"] = ""
     df["reason"] = ""
     df["greeting"] = ""
-    total_openai_time = 0.0
-
     for i, row in df.iterrows():
-        start_openai_time = time.time()
-
-        # OpenAI API calls made here
-        prompt_profile_summary = (
-            f"Summarize below profile in max 30 words.\n\n"
-            f"Job: {row['summary'][:500]}\n"
+        s = generate_text(f"Summarize profile in 30 words:\n{row['summary'][:500]}", temperature=0.6)
+        df.at[i,"summary"] = s
+        r = generate_text(f"Why this mentor? 50 words:\n{row['headline']}\n{s}\nMy CV: {cv_summary}\nMy interests: {job_interest}", max_tokens=100)
+        df.at[i,"reason"] = r
+        g = generate_text(
+            f"Write a short, warm, professional first-message (max 30 words) to contact the mentor in LinkedIn to invite for a 15-min coffee chat for career advice.\n\n"
+            f"Mentor: {row['name']}, {row['headline']}\nMy CV: {cv_summary}\nMy interests: {job_interest}",
+            max_tokens=100
         )
-        profile_summary = generate_text(prompt_profile_summary, temperature=0.7)
-        total_openai_time += time.time() - start_openai_time
-
-        df.at[i, "summary"] = profile_summary
-
-        prompt_reason = (f"Why this mentor can help me in my career path? "
-                         f"Comment in max 50 words\nMentor headline: {row['headline']}\n"
-                         f"Mentor summary: {profile_summary}\n"
-                         f"My CV summary: {cv_summary}\n"
-                         f"My job interests: {job_interest}")
-        df.at[i, "reason"] = generate_text(prompt_reason, max_tokens=100, temperature=0.7)
-
-        prompt_greeting = (f"Write a short, warm, professional first-message (max 30 words) "
-                           f"to contact the mentor on LinkedIn...\n\n..."
-                           f"My job interests: {job_interest}\n\n"
-                           "Tone: respectful, concise, genuine. End with a clear call-to-action.")
-        df.at[i, "greeting"] = generate_text(prompt_greeting, max_tokens=100, temperature=0.7)
-
-    return df, semantic_time, total_openai_time
+        df.at[i,"greeting"] = g
+    return df
 
 # ────────────────────────────────────────────────
-#  MAIN STREAMLIT APP
+#  PAGES
 # ────────────────────────────────────────────────
-
-def main():
-
-    # ── Header ───────────────────────────────────────
+def page_upload_cv():
     st.title("🌉 CareerBridge AI")
-    st.header("Bridge the gap to your dream career")
-    st.markdown(
-        "Upload your CV, tell me about your interests in searching jobs. "
-        "I will find **Jobs** and **Mentors** from LinkedIn for you."
-    )
-    st.divider()
+    st.header("Upload CV and Job Interests")
+    col1, col2 = st.columns(2)
 
-    # ── Inputs ───────────────────────────────────────
-    col_left, col_right = st.columns([5, 5])
+    with col1:
+        st.subheader("📄 Upload CV")
+        file = st.file_uploader("PDF/DOCX only", type=["pdf","docx"])
 
-    with col_left:
-        st.subheader("Step 1: 📄 Upload your CV")
-        uploaded_file = st.file_uploader(
-            "PDF or DOCX only",
-            type=["pdf", "docx"],
-            help="Upload your resume / CV"
-        )
+    with col2:
+        st.subheader("🧭 Job Interests")
+        interest = st.text_area("Target roles, locations, skills", value=st.session_state.job_interest, height=140)
+        st.session_state.job_interest = interest.strip()
 
-    with col_right:
-        st.subheader("Step 2: 🧭 Your job Interest (optional)")
-        job_interest = st.text_area(
-            label="Describe the roles, industries, technologies or locations you're interested in",
-            height=140,
-            placeholder="Example:\n• AI / Machine Learning Engineer\n• Remote or Hong Kong\n• Python, PyTorch, LLM experience"
-        ).strip()
+    if st.button("✅ Process CV", type="primary", use_container_width=True):
+        if not file:
+            st.warning("Upload CV first!")
+            return
+        with st.spinner("Reading CV..."):
+            txt = parse_cv(file)
+            if not txt:
+                st.error("Failed to read CV")
+                return
+            st.session_state.cv_text = txt
+        with st.spinner("Analyzing..."):
+            summary, _ = analyze_cv(txt)
+            st.session_state.cv_summary = summary
+        st.success("✅ CV processed!")
 
-    # Display the button regardless of uploaded file or job interest
-    st.subheader("Step 3: ⚙️ Process")
-    if st.button("Process CV and Find Matches"):
-        if not uploaded_file:
-            st.info("Please upload your CV to start matching.")
-            st.stop()
-
+    if st.session_state.cv_summary:
         st.divider()
+        st.subheader("📊 CV Summary")
+        st.markdown(st.session_state.cv_summary)
 
-        # ── Processing ───────────────────────────────────
-        with st.spinner("Reading CV ..."):
-            start_time = time.time()  # Start timer
-            cv_text = parse_cv(uploaded_file)
-            elapsed_time = time.time() - start_time  # Calculate elapsed time
-            #st.success(f"CV processed in {elapsed_time:.2f} seconds.")
+def page_cv_suggestions():
+    st.title("💡 CV Suggestions")
+    if not st.session_state.cv_text:
+        st.warning("Upload CV first")
+        return
+    if not st.session_state.cv_suggestions:
+        with st.spinner("Generating..."):
+            _, sug = analyze_cv(st.session_state.cv_text)
+            st.session_state.cv_suggestions = sug
+    st.markdown(st.session_state.cv_suggestions)
 
-        if not cv_text:
-            st.stop()
-
-        # ── CV Analysis & Suggestions ────────────────────
-        with st.spinner("Analyzing your CV ..."):
-            start_time = time.time()  # Start timer
-            cv_summary, cv_suggestions = analyze_cv(cv_text)
-            elapsed_time = time.time() - start_time  # Calculate elapsed time
-            st.success(f"CV analysis completed in {elapsed_time:.2f} seconds.")
-
-        col1, col2 = st.columns([5, 5])
-
-        with col1:
-            st.subheader("📊 Analysis")
-            st.markdown(cv_summary or "*No summary generated*")
-
-        with col2:
-            st.subheader("💡 Suggestions to improve CV")
-            st.markdown(cv_suggestions or "*No suggestions generated*")
-
-        st.divider()
-
-        # ── Load datasets ────────────────────────────────
-        with st.spinner("Loading LinkedIn datasets ..."):
-            start_time = time.time()  # Start timer
-            
-            df_jobs = load_jobs().sample(n=RANDOM_JOBS, random_state=1)
-            #df_profiles = load_profiles().sample(n=RANDOM_PROFILES, random_state=1)
-            df_profiles = (
-                load_profiles()
-                .dropna(subset=['headline', 'summary'])
-                .query("headline.str.strip() != '' and summary.str.strip() != ''")
-                .sample(n=RANDOM_JOBS, random_state=1)
+def page_matched_jobs():
+    st.title("🔍 Matched Jobs")
+    if not st.session_state.cv_summary:
+        st.warning("Upload CV first")
+        return
+    if st.session_state.df_jobs.empty:
+        with st.spinner("Loading jobs..."):
+            jobs_df = load_jobs_data()
+            if jobs_df.empty:
+                st.error("No jobs data")
+                return
+            st.session_state.df_jobs = jobs_df.sample(n=min(RANDOM_JOBS, len(jobs_df)), random_state=1)
+    if st.session_state.matched_jobs.empty:
+        with st.spinner("Matching jobs..."):
+            st.session_state.matched_jobs = match_jobs_auto(
+                st.session_state.cv_summary,
+                st.session_state.job_interest,
+                st.session_state.df_jobs
             )
-            
-            elapsed_time = time.time() - start_time  # Calculate elapsed time
-            st.success(f"LinkedIn datasets loaded in {elapsed_time:.2f} seconds.")
+    for _, row in st.session_state.matched_jobs.iterrows():
+        with st.expander(f"{row['title']} | {row['match_score']}%"):
+            st.write(f"**Company**: {row.get('company')}")
+            st.write(f"**Summary**: {row.get('summary')}")
+            st.write(f"**Fit**: {row.get('reason')}")
 
-        if df_jobs.empty and df_profiles.empty:
-            st.error("No job or profile data available. Cannot perform matching.")
-            st.stop()
+def page_matched_profiles():
+    st.title("👥 Career Mentors")
+    if not st.session_state.cv_summary:
+        st.warning("Upload CV first")
+        return
+    if st.session_state.df_profiles.empty:
+        with st.spinner("Loading mentors..."):
+            prof_df = load_profiles_data()
+            if prof_df.empty:
+                st.error("No profiles")
+                return
+            clean = prof_df.dropna(subset=['headline','summary']).query("headline!='' & summary!=''")
+            st.session_state.df_profiles = clean.sample(n=min(RANDOM_PROFILES, len(clean)), random_state=1)
+    if st.session_state.matched_profiles.empty:
+        with st.spinner("Matching mentors..."):
+            st.session_state.matched_profiles = match_profiles_auto(
+                st.session_state.cv_summary,
+                st.session_state.job_interest,
+                st.session_state.df_profiles
+            )
+    for _, row in st.session_state.matched_profiles.iterrows():
+        with st.expander(f"{row['name']} | {row['match_score']}%"):
+            st.write(f"**Headline**: {row.get('headline')}")
+            st.write(f"**Fit**: {row.get('reason')}")
+            st.divider()
+            st.markdown(f"**☕ Message**: {row.get('greeting')}")
 
-        # ── Matching ─────────────────────────────────────
-        with st.spinner("Finding best job & mentor matches ... (this may take 30–90 seconds)"):
-            start_time = time.time()  # Start timer
-            
-            df_matched_jobs, semantic_time_jobs, openai_time_jobs = match_jobs(cv_summary, job_interest, df_jobs)
-            df_matched_profiles, semantic_time_profiles, openai_time_profiles = match_profiles(cv_summary, job_interest, df_profiles)
+# ────────────────────────────────────────────────
+#  NAVIGATION
+# ────────────────────────────────────────────────
+def main():
+    add_highlighted_button_css()
+    with st.sidebar:
+        st.title("🌉 Menu")
+        if st.button("📄 Upload CV", use_container_width=True):
+            st.session_state.current_page = "upload_cv"
+        if st.button("💡 CV Tips", use_container_width=True):
+            st.session_state.current_page = "cv_suggestions"
+        if st.button("🔍 Jobs", use_container_width=True):
+            st.session_state.current_page = "matched_jobs"
+        if st.button("👥 Mentors", use_container_width=True):
+            st.session_state.current_page = "matched_profiles"
 
-            # Display timing information
-            st.markdown(f"- **Semantic Search Time (Jobs):** {semantic_time_jobs:.2f}s")
-            st.markdown(f"- **OpenAI API Time (Jobs):** {openai_time_jobs:.2f}s")
-            st.markdown(f"- **Semantic Search Time (Profiles):** {semantic_time_profiles:.2f}s")
-            st.markdown(f"- **OpenAI API Time (Profiles):** {openai_time_profiles:.2f}s")
+    if st.session_state.current_page == "upload_cv":
+        page_upload_cv()
+    elif st.session_state.current_page == "cv_suggestions":
+        page_cv_suggestions()
+    elif st.session_state.current_page == "matched_jobs":
+        page_matched_jobs()
+    elif st.session_state.current_page == "matched_profiles":
+        page_matched_profiles()
 
-            elapsed_time = time.time() - start_time  # Calculate elapsed time
-            st.success(f"Matched jobs and mentors in {elapsed_time:.2f} seconds.")
-
-        # ── Results ──────────────────────────────────────
-        col_jobs, col_mentors = st.columns([5, 5])
-
-        with col_jobs:
-            st.subheader("🔍 Job Matches on LinkedIn")
-
-            if df_matched_jobs.empty:
-                st.info("No job matches found.")
-            else:
-                for _, row in df_matched_jobs.iterrows():
-                    with st.expander(f"{row['title']} - Scores: {np.round(row['match_score'], 2)}%"):
-                        st.markdown(f"**Company:** {row.get('company','–')}")
-                        st.markdown(f"**Location:** {row.get('location','–')}")
-                        st.markdown(f"**Description:**\n{row.get('summary','–')}")
-                        st.markdown(f"**Why suitable?**\n{row.get('reason','–')}")
-                        st.link_button("🔗 View LinkedIn Job", row['link'], use_container_width=False)
-
-        with col_mentors:
-            st.subheader("👥 Career Path Mentors on LinkedIn")
-
-            if df_matched_profiles.empty:
-                st.info("No mentor matches found.")
-            else:
-                for i, row in df_matched_profiles.iterrows():
-                    with st.expander(f"{row['name']} - Scores: {np.round(row['match_score'], 2)}%"):
-                        st.markdown(f"**Location:** {row.get('city','–')}, {row.get('country','–')}")
-                        st.markdown(f"**Job:**\n{row.get('headline','–')}")
-                        st.markdown(f"**Summary:**\n{row.get('summary','–')}")
-                        st.markdown(f"**Why suggest this mentor?**: {row.get('reason','–')}")
-                        st.link_button("🔗 View LinkedIn Profile", f"https://www.linkedin.com/in/{row['id']}/", use_container_width=False)
-                        st.divider()
-                        st.markdown(f"**☕ Coffee Chat Invite**:\n\n{row.get('greeting','–')}")
-                        
 if __name__ == "__main__":
     main()
