@@ -16,19 +16,12 @@ from dotenv import load_dotenv
 #  SECRETS / CONFIG  (Change this before production!)
 # ────────────────────────────────────────────────
 
-AZURE_OPENAI_API_KEY    = os.getenv("AZURE_OPENAI_API_KEY")
-AZURE_ENDPOINT          = "https://hkust.azure-api.net"
-AZURE_API_VERSION       = "2025-02-01-preview"
-AZURE_MODEL             = "gpt-4o-mini"
-
-
-load_dotenv()
+#load_dotenv()
 
 AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
 AZURE_ENDPOINT = os.getenv("AZURE_ENDPOINT")
 AZURE_API_VERSION = os.getenv("AZURE_API_VERSION")
 AZURE_MODEL = os.getenv("AZURE_MODEL")
-
 
 SEMANTIC_MODEL          = "all-MiniLM-L6-v2"
 
@@ -179,113 +172,113 @@ def load_profiles() -> pd.DataFrame:
 #  4. Semantic matching
 # ────────────────────────────────────────────────
 
-def match_jobs(cv_summary: str, job_interest: str, df_jobs: pd.DataFrame) -> pd.DataFrame:
+def match_jobs(cv_summary: str, job_interest: str, df_jobs: pd.DataFrame) -> tuple[pd.DataFrame, float, float]:
     if df_jobs.empty or not cv_summary.strip():
-        return pd.DataFrame()
+        return pd.DataFrame(), 0.0, 0.0
 
     df = df_jobs.copy()
-
-    # Create combined text for jobs
     df["combined_text"] = (
         df["title"].fillna("") + " " +
         df["description"].fillna("")
     ).str.strip()
 
-    # Embeddings
-    cv_emb        = embedder.encode(cv_summary, convert_to_tensor=True)
-    interest_emb  = embedder.encode(job_interest, convert_to_tensor=True)
-    query_emb     = (cv_emb + interest_emb) / 2   # simple average
+    # Start timing for semantic search
+    start_semantic_time = time.time()
 
-    job_embs      = embedder.encode(df["combined_text"].tolist(), convert_to_tensor=True)
+    # Embeddings
+    cv_emb = embedder.encode(cv_summary, convert_to_tensor=True)
+    interest_emb = embedder.encode(job_interest, convert_to_tensor=True)
+    query_emb = (cv_emb + interest_emb) / 2
+    job_embs = embedder.encode(df["combined_text"].tolist(), convert_to_tensor=True)
+
+    semantic_time = time.time() - start_semantic_time
 
     cos_scores = util.cos_sim(query_emb, job_embs)[0].cpu().numpy()
     df["match_score"] = np.round(cos_scores * 100, 2)
-
-    # Sort & take top 10
     df = df.sort_values("match_score", ascending=False).head(MAX_JOBS).reset_index(drop=True)
 
-    # Generate "why suitable" reasoning
+    # Generate reasons and summaries
     df["reason"] = ""
     df["summary"] = ""
-    for i, row in df.iterrows():
+    total_openai_time = 0.0
 
+    for i, row in df.iterrows():
+        start_openai_time = time.time()
+        
+        # OpenAI API calls made here
         prompt_job_summary = (
             f"Summarize below job in max 30 words.\n\n"
-            f"Job: {row["description"][:500]}\n"
+            f"Job: {row['description'][:500]}\n"
         )
         job_summary = generate_text(prompt_job_summary, temperature=0.7)
-        df.at[i, "summary"] = job_summary
+        total_openai_time += time.time() - start_openai_time
 
-        prompt = (
-            f"Why this job is suitable for me? Comment within 50 words.\n\n"
-            f"Job title: {row['title']}\n"
-            f"Job description: {job_summary}\n"
-            f"My CV summary: {cv_summary}\n"
-            f"My job interests: {job_interest}\n"
-        )
+        df.at[i, "summary"] = job_summary
+        prompt = (f"Why this job is suitable for me? Comment within 50 words.\n\n"
+                  f"Job title: {row['title']}\n"
+                  f"Job description: {job_summary}\n"
+                  f"My CV summary: {cv_summary}\n"
+                  f"My job interests: {job_interest}\n")
         df.at[i, "reason"] = generate_text(prompt, max_tokens=220, temperature=0.7)
 
-    return df
-
-def match_profiles(cv_summary: str, job_interest: str, df_profiles: pd.DataFrame) -> pd.DataFrame:
+    return df, semantic_time, total_openai_time
+    
+def match_profiles(cv_summary: str, job_interest: str, df_profiles: pd.DataFrame) -> tuple[pd.DataFrame, float, float]:
     if df_profiles.empty or not cv_summary.strip():
-        return pd.DataFrame()
+        return pd.DataFrame(), 0.0, 0.0
 
     df = df_profiles.copy()
-
     df["combined_text"] = (
         df["headline"].fillna("") + " " +
         df["summary"].fillna("")
     ).str.strip()
 
-    cv_emb       = embedder.encode(cv_summary, convert_to_tensor=True)
-    interest_emb = embedder.encode(job_interest, convert_to_tensor=True)
-    query_emb    = (cv_emb + interest_emb) / 2
+    # Start timing for semantic search
+    start_semantic_time = time.time()
 
+    cv_emb = embedder.encode(cv_summary, convert_to_tensor=True)
+    interest_emb = embedder.encode(job_interest, convert_to_tensor=True)
+    query_emb = (cv_emb + interest_emb) / 2
     profile_embs = embedder.encode(df["combined_text"].tolist(), convert_to_tensor=True)
 
+    semantic_time = time.time() - start_semantic_time
+    
     cos_scores = util.cos_sim(query_emb, profile_embs)[0].cpu().numpy()
     df["match_score"] = np.round(cos_scores * 100, 2)
-
     df = df.sort_values("match_score", ascending=False).head(MAX_PROFILES).reset_index(drop=True)
 
-    # Generate reason & greeting for top 10
-    df["reason"]   = ""
+    # Generate reasons and greetings
+    df["reason"] = ""
     df["greeting"] = ""
+    total_openai_time = 0.0
 
-    for i, row in df.head(MAX_PROFILES).iterrows():
-        # summary
+    for i, row in df.iterrows():
+        start_openai_time = time.time()
+
+        # OpenAI API calls made here
         prompt_profile_summary = (
             f"Summarize below profile in max 30 words.\n\n"
-            f"Job: {row["summary"][:500]}\n"
+            f"Job: {row['summary'][:500]}\n"
         )
         profile_summary = generate_text(prompt_profile_summary, temperature=0.7)
+        total_openai_time += time.time() - start_openai_time
+
         df.at[i, "summary"] = profile_summary
 
-        # Reason
-        prompt_reason = (
-            f"Why this mentor can help me in my career path? comment in max 50 words\n"
-            f"Mentor headline: {row['headline']}\n"
-            f"Mentor summary: {profile_summary}\n"
-            f"My CV summary: {cv_summary}\n"
-            f"My job interests: {job_interest}"
-        )
+        prompt_reason = (f"Why this mentor can help me in my career path? "
+                         f"Comment in max 50 words\nMentor headline: {row['headline']}\n"
+                         f"Mentor summary: {profile_summary}\n"
+                         f"My CV summary: {cv_summary}\n"
+                         f"My job interests: {job_interest}")
         df.at[i, "reason"] = generate_text(prompt_reason, max_tokens=100, temperature=0.7)
 
-        # Greeting
-        prompt_greeting = (
-            f"Write a short, warm, professional first-message (max 30 words) to contact the mentor in LinkedIn "
-            f"to invite this mentor for a 15-min virtual coffee chat to seek for advises on my career development.\n\n"
-            f"Mentor's name: {row['name']}\n"
-            f"Mentor's job: {row['headline']}\n"
-            f"Mentor's summary: {profile_summary}\n\n"
-            f"My CV summary: {cv_summary}\n"
-            f"My job interests: {job_interest}\n\n"
-            "Tone: respectful, concise, genuine. End with a clear call-to-action."
-        )
+        prompt_greeting = (f"Write a short, warm, professional first-message (max 30 words) "
+                           f"to contact the mentor on LinkedIn...\n\n..."
+                           f"My job interests: {job_interest}\n\n"
+                           "Tone: respectful, concise, genuine. End with a clear call-to-action.")
         df.at[i, "greeting"] = generate_text(prompt_greeting, max_tokens=100, temperature=0.7)
 
-    return df
+    return df, semantic_time, total_openai_time
 
 # ────────────────────────────────────────────────
 #  MAIN STREAMLIT APP
@@ -380,11 +373,15 @@ def main():
 
         # ── Matching ─────────────────────────────────────
         with st.spinner("Finding best job & mentor matches ... (this may take 30–90 seconds)"):
-            start_time = time.time()  # Start timer
-            df_matched_jobs = match_jobs(cv_summary, job_interest, df_jobs)
-            df_matched_profiles = match_profiles(cv_summary, job_interest, df_profiles)
-            elapsed_time = time.time() - start_time  # Calculate elapsed time
-            st.success(f"Matching completed in {elapsed_time:.2f} seconds.")
+            df_matched_jobs, semantic_time_jobs, openai_time_jobs = match_jobs(cv_summary, job_interest, df_jobs)
+            df_matched_profiles, semantic_time_profiles, openai_time_profiles = match_profiles(cv_summary, job_interest, df_profiles)
+
+            # Display timing information
+            st.success(f"Matching completed!")
+            st.markdown(f"- **Semantic Search Time (Jobs):** {semantic_time_jobs:.2f}s")
+            st.markdown(f"- **OpenAI API Time (Jobs):** {openai_time_jobs:.2f}s")
+            st.markdown(f"- **Semantic Search Time (Profiles):** {semantic_time_profiles:.2f}s")
+            st.markdown(f"- **OpenAI API Time (Profiles):** {openai_time_profiles:.2f}s")
 
         # ── Results ──────────────────────────────────────
         col_jobs, col_mentors = st.columns([5, 5])
