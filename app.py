@@ -10,7 +10,7 @@ import pypdf
 import docx2txt
 from pathlib import Path
 import time
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 
 # ────────────────────────────────────────────────
 #  SECRETS / CONFIG  (Change this before production!)
@@ -18,10 +18,14 @@ from dotenv import load_dotenv
 
 #load_dotenv()
 
-AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
-AZURE_ENDPOINT = os.getenv("AZURE_ENDPOINT")
-AZURE_API_VERSION = os.getenv("AZURE_API_VERSION")
-AZURE_MODEL = os.getenv("AZURE_MODEL")
+#AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+#AZURE_ENDPOINT = os.getenv("AZURE_ENDPOINT")
+#AZURE_API_VERSION = os.getenv("AZURE_API_VERSION")
+#AZURE_MODEL = os.getenv("AZURE_MODEL")
+AZURE_OPENAI_API_KEY = st.secrets["AZURE_OPENAI_API_KEY"]
+AZURE_ENDPOINT = st.secrets["AZURE_ENDPOINT"]
+AZURE_API_VERSION = st.secrets["AZURE_API_VERSION"]
+AZURE_MODEL = st.secrets["AZURE_MODEL"]
 
 SEMANTIC_MODEL          = "all-MiniLM-L6-v2"
 
@@ -355,6 +359,7 @@ def main():
         # ── Load datasets ────────────────────────────────
         with st.spinner("Loading LinkedIn datasets ..."):
             start_time = time.time()  # Start timer
+            
             df_jobs = load_jobs().sample(n=RANDOM_JOBS, random_state=1)
             #df_profiles = load_profiles().sample(n=RANDOM_PROFILES, random_state=1)
             df_profiles = (
@@ -363,9 +368,9 @@ def main():
                 .query("headline.str.strip() != '' and summary.str.strip() != ''")
                 .sample(n=RANDOM_JOBS, random_state=1)
             )
+            
             elapsed_time = time.time() - start_time  # Calculate elapsed time
-            elapsed_time = time.time() - start_time  # Calculate elapsed time
-            #st.success(f"LinkedIn datasets loaded in {elapsed_time:.2f} seconds.")
+            st.success(f"LinkedIn datasets loaded in {elapsed_time:.2f} seconds.")
 
         if df_jobs.empty and df_profiles.empty:
             st.error("No job or profile data available. Cannot perform matching.")
@@ -373,15 +378,19 @@ def main():
 
         # ── Matching ─────────────────────────────────────
         with st.spinner("Finding best job & mentor matches ... (this may take 30–90 seconds)"):
+            start_time = time.time()  # Start timer
+            
             df_matched_jobs, semantic_time_jobs, openai_time_jobs = match_jobs(cv_summary, job_interest, df_jobs)
             df_matched_profiles, semantic_time_profiles, openai_time_profiles = match_profiles(cv_summary, job_interest, df_profiles)
 
             # Display timing information
-            st.success(f"Matching completed!")
             st.markdown(f"- **Semantic Search Time (Jobs):** {semantic_time_jobs:.2f}s")
             st.markdown(f"- **OpenAI API Time (Jobs):** {openai_time_jobs:.2f}s")
             st.markdown(f"- **Semantic Search Time (Profiles):** {semantic_time_profiles:.2f}s")
             st.markdown(f"- **OpenAI API Time (Profiles):** {openai_time_profiles:.2f}s")
+
+            elapsed_time = time.time() - start_time  # Calculate elapsed time
+            st.success(f"Matched jobs and mentors in {elapsed_time:.2f} seconds.")
 
         # ── Results ──────────────────────────────────────
         col_jobs, col_mentors = st.columns([5, 5])
