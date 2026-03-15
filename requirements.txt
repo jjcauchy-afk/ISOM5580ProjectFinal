@@ -6,3 +6,4 @@ torch
 streamlit
 pandas
 sentence-transformers
+python-dotenv
