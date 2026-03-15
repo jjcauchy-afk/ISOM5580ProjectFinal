@@ -10,15 +10,25 @@ import pypdf
 import docx2txt
 from pathlib import Path
 import time
+from dotenv import load_dotenv
 
 # ────────────────────────────────────────────────
 #  SECRETS / CONFIG  (Change this before production!)
 # ────────────────────────────────────────────────
 
-AZURE_OPENAI_API_KEY    = "d61f68e18b894a36a48063cd1fe6a457"   # ← DANGER: DO NOT COMMIT
+AZURE_OPENAI_API_KEY    = os.getenv("AZURE_OPENAI_API_KEY")
 AZURE_ENDPOINT          = "https://hkust.azure-api.net"
 AZURE_API_VERSION       = "2025-02-01-preview"
 AZURE_MODEL             = "gpt-4o-mini"
+
+
+load_dotenv()
+
+AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+AZURE_ENDPOINT = os.getenv("AZURE_ENDPOINT")
+AZURE_API_VERSION = os.getenv("AZURE_API_VERSION")
+AZURE_MODEL = os.getenv("AZURE_MODEL")
+
 
 SEMANTIC_MODEL          = "all-MiniLM-L6-v2"
 
