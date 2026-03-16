@@ -63,10 +63,10 @@ AZURE_API_VERSION = st.secrets.get("AZURE_API_VERSION", "2024-02-15-preview")
 AZURE_MODEL = st.secrets.get("AZURE_MODEL", "")
 
 SEMANTIC_MODEL = "all-MiniLM-L6-v2"
-MAX_JOBS = 3
-MAX_PROFILES = 3
-RANDOM_JOBS = 10
-RANDOM_PROFILES = 10
+MAX_JOBS = 10
+MAX_PROFILES = 5
+RANDOM_JOBS = 100
+RANDOM_PROFILES = 100
 
 # ────────────────────────────────────────────────
 #  SESSION STATE
@@ -132,7 +132,7 @@ embedder = get_semantic_model()
 # ────────────────────────────────────────────────
 #  BATCH OPENAI CALLS (SPEEDUP)
 # ────────────────────────────────────────────────
-def generate_text(prompt: str, max_tokens: int = 800, temperature: float = 0.7) -> str:
+def generate_text(prompt, max_tokens = 800, temperature = 0.7) -> str:
     if not client:
         return ""
     try:
@@ -147,7 +147,7 @@ def generate_text(prompt: str, max_tokens: int = 800, temperature: float = 0.7) 
         st.error(f"OpenAI error: {e}")
         return ""
 
-def generate_batch(prompts, max_tokens_per=100):
+def generate_batch(prompts, max_tokens_per = 100, temperature = 0.7):
     if not client or not prompts:
         return [""] * len(prompts)
     try:
@@ -159,7 +159,7 @@ def generate_batch(prompts, max_tokens_per=100):
             model=AZURE_MODEL,
             messages=[{"role": "user", "content": full_prompt}],
             max_tokens=max_tokens_per * len(prompts),
-            temperature=0.3
+            temperature=temperature
         )
         parts = res.choices[0].message.content.strip().split("|||")
         parts = [p.strip() for p in parts]
@@ -194,7 +194,7 @@ def cv_summary(cv_text):
 def cv_suggestion(cv_text):
     if not cv_text:
         return "", ""
-    sug_txt = generate_text("5 bullet CV improvements (max 50 words each):\n"+cv_text, 200)
+    sug_txt = generate_text("5 CV improvements (max 50 words each):\n"+cv_text, 200)
     return sug_txt
 
 @st.cache_data
@@ -232,7 +232,7 @@ def match_jobs_auto(cv_summary, job_interest, df_jobs):
 
     prompts = []
     for _, row in df.iterrows():
-        prompts.append(f"Summarize job in 30 words:\n{row['description'][:500]}")
+        prompts.append(f"Summarize job in 30 words:\n{row['description'][:1000]}")
         prompts.append(f"Why fit? 50 words:\nJob: {row['title']}\nMy CV: {cv_summary}\nInterests: {job_interest}")
     responses = generate_batch(prompts, max_tokens_per=60)
 
@@ -262,9 +262,9 @@ def match_profiles_auto(cv_summary, job_interest, df_profiles):
 
     prompts = []
     for _, row in df.iterrows():
-        prompts.append(f"Summarize mentor profile in 30 words:\n{row['summary'][:500]}")
+        prompts.append(f"Summarize mentor profile in 30 words:\n{row['summary']}")
         prompts.append(f"Why mentor match? 50 words:\n{row['headline']}\nMy CV: {cv_summary}")
-        prompts.append(f"30-word LinkedIn message to {row['name']} for 15min career chat.")
+        prompts.append(f"30-word LinkedIn message to {row['name']} for 15min career chat, casual style.")
     res = generate_batch(prompts, max_tokens_per=60)
 
     summaries = []
@@ -335,13 +335,13 @@ def page_matched_jobs():
             st.success(f"Matched jobs processed in {round(time.time() - start_time, 2)}s")
     
     for _, row in st.session_state.matched_jobs.iterrows():
-        with st.expander(f"{row['title']} | {round(row['match_score'],2)}%"):
+        with st.expander(f"**{row['title']}** - Score: {round(row['match_score'],2)}%"):
             col1, col2 = st.columns([3, 1])  # Split for content + button
             with col1:
                 st.write(f"**Company**: {row.get('company')}")
                 st.write(f"**Location**: {row.get('location')}")
-                st.write(f"**Summary**: {row.get('summary')}")
-                st.write(f"**Fit**: {row.get('reason')}")
+                st.write(f"**Summary**:  \n{row.get('summary')}")
+                st.write(f"**Why Fit?**  \n{row.get('reason')}")
             
             with col2:
                 # Find job URL and create button
@@ -385,14 +385,14 @@ def page_matched_profiles():
             st.success(f"Matched mentors processed in {round(time.time() - start_time, 2)}s")
     
     for _, row in st.session_state.matched_profiles.iterrows():
-        with st.expander(f"{row['name']} | {round(row['match_score'],2)}%"):
+        with st.expander(f"**{row['name']}** - Score: {round(row['match_score'],2)}%"):
             col1, col2 = st.columns([3, 1])  # Split for content + button
             with col1:
-                st.write(f"**Headline**: {row.get('headline')}")
-                st.write(f"**Profile Summary**: {row.get('summary')}")
-                st.write(f"**Fit**: {row.get('reason')}")
+                st.write(f"**Headline**:  \n{row.get('headline')}")
+                st.write(f"**Profile Summary**:  \n{row.get('summary')}")
+                st.write(f"**Why Fit?**  \n{row.get('reason')}")
                 st.divider()
-                st.markdown(f"**☕ Message**: {row.get('greeting')}")
+                st.markdown(f"**☕ Coffee Chat Message**  \n{row.get('greeting')}")
             
             with col2:
                 # Create LinkedIn profile button
