@@ -132,7 +132,7 @@ embedder = get_semantic_model()
 # ────────────────────────────────────────────────
 #  BATCH OPENAI CALLS
 # ────────────────────────────────────────────────
-def generate_text(prompt, max_tokens = 800, temperature = 0.7) -> str:
+def generate_text(prompt, max_tokens = 800, temperature = 0.5) -> str:
     if not client:
         return ""
     try:
