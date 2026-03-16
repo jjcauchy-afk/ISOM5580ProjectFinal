@@ -10,7 +10,7 @@ from pathlib import Path
 import time
 
 # ────────────────────────────────────────────────
-#  CSS (UPDATED FOR BETTER BUTTON STYLING)
+#  CSS
 # ────────────────────────────────────────────────
 def add_highlighted_button_css():
     st.markdown("""
@@ -130,7 +130,7 @@ client = get_openai_client()
 embedder = get_semantic_model()
 
 # ────────────────────────────────────────────────
-#  BATCH OPENAI CALLS (SPEEDUP)
+#  BATCH OPENAI CALLS
 # ────────────────────────────────────────────────
 def generate_text(prompt, max_tokens = 800, temperature = 0.7) -> str:
     if not client:
@@ -219,8 +219,14 @@ def load_profiles_data():
 #  JOB MATCHING
 # ────────────────────────────────────────────────
 def match_jobs_auto(cv_summary, job_interest, df_jobs):
+    # Initialize timing variables
+    semantic_time = 0.0
+    openai_time = 0.0
+    
     if df_jobs.empty or not cv_summary:
-        return pd.DataFrame()
+        return pd.DataFrame(), semantic_time, openai_time
+    
+    semantic_start = time.time()
     df = df_jobs.copy()
     df["combined_text"] = df["title"] + " " + df["description"]
     cv_emb = embedder.encode(cv_summary, convert_to_tensor=True)
@@ -229,7 +235,9 @@ def match_jobs_auto(cv_summary, job_interest, df_jobs):
     j_emb = embedder.encode(df["combined_text"].tolist(), convert_to_tensor=True)
     df["match_score"] = np.round(util.cos_sim(q_emb, j_emb)[0].cpu().numpy()*100,2)
     df = df.sort_values("match_score", ascending=False).head(MAX_JOBS).reset_index(drop=True)
-
+    semantic_time = round(time.time() - semantic_start, 2)
+    
+    openai_start = time.time()
     prompts = []
     for _, row in df.iterrows():
         prompts.append(f"Summarize job in 50 words:\n{row['description'][:1000]}")
@@ -243,14 +251,22 @@ def match_jobs_auto(cv_summary, job_interest, df_jobs):
         reasons.append(responses[i+1] if (i+1) < len(responses) else "")
     df["summary"] = summaries
     df["reason"] = reasons
-    return df
+    openai_time = round(time.time() - openai_start, 2)
+    
+    return df, semantic_time, openai_time
 
 # ────────────────────────────────────────────────
 #  MENTOR MATCHING
 # ────────────────────────────────────────────────
 def match_profiles_auto(cv_summary, job_interest, df_profiles):
+    # Initialize timing variables
+    semantic_time = 0.0
+    openai_time = 0.0
+    
     if df_profiles.empty or not cv_summary:
-        return pd.DataFrame()
+        return pd.DataFrame(), semantic_time, openai_time
+    
+    semantic_start = time.time()
     df = df_profiles.copy()
     df["combined_text"] = df["headline"].fillna("") + " " + df["summary"].fillna("")
     cv_emb = embedder.encode(cv_summary, convert_to_tensor=True)
@@ -259,7 +275,9 @@ def match_profiles_auto(cv_summary, job_interest, df_profiles):
     p_emb = embedder.encode(df["combined_text"].tolist(), convert_to_tensor=True)
     df["match_score"] = np.round(util.cos_sim(q_emb, p_emb)[0].cpu().numpy()*100,2)
     df = df.sort_values("match_score", ascending=False).head(MAX_PROFILES).reset_index(drop=True)
-
+    semantic_time = round(time.time() - semantic_start, 2)
+    
+    openai_start = time.time()
     prompts = []
     for _, row in df.iterrows():
         prompts.append(f"Summarize mentor profile in 50 words:\n{row['summary']}")
@@ -277,10 +295,12 @@ def match_profiles_auto(cv_summary, job_interest, df_profiles):
     df["summary"] = summaries
     df["reason"] = reasons
     df["greeting"] = greetings
-    return df
+    openai_time = round(time.time() - openai_start, 2)
+    
+    return df, semantic_time, openai_time
 
 # ────────────────────────────────────────────────
-#  PAGES — LINK BUTTONS (IMPROVED UI)
+#  PAGES 
 # ────────────────────────────────────────────────
 def page_upload_cv():
     st.title("🌉 CareerBridge AI")
@@ -326,13 +346,13 @@ def page_matched_jobs():
     
     if st.session_state.matched_jobs.empty:
         with st.spinner("Executing task...", show_time=True):
-            start_time = time.time()
-            st.session_state.matched_jobs = match_jobs_auto(
+            matched_jobs_df, semantic_time, openai_time = match_jobs_auto(
                 st.session_state.cv_summary,
                 st.session_state.job_interest,
                 st.session_state.df_jobs
             )
-            st.success(f"Matched jobs processed in {round(time.time() - start_time, 2)}s")
+            st.session_state.matched_jobs = matched_jobs_df
+            st.success(f"Matched jobs processed - Semantic Search: {semantic_time}s | OpenAI: {openai_time}s")
     
     for _, row in st.session_state.matched_jobs.iterrows():
         with st.expander(f"**{row['title']}** - Score: {round(row['match_score'],2)}%"):
@@ -376,13 +396,13 @@ def page_matched_profiles():
     
     if st.session_state.matched_profiles.empty:
         with st.spinner("Executing task...", show_time=True):
-            start_time = time.time()
-            st.session_state.matched_profiles = match_profiles_auto(
+            matched_profiles_df, semantic_time, openai_time = match_profiles_auto(
                 st.session_state.cv_summary,
                 st.session_state.job_interest,
                 st.session_state.df_profiles
             )
-            st.success(f"Matched mentors processed in {round(time.time() - start_time, 2)}s")
+            st.session_state.matched_profiles = matched_profiles_df
+            st.success(f"Matched mentors processed - Semantic Search: {semantic_time}s | OpenAI: {openai_time}s")
     
     for _, row in st.session_state.matched_profiles.iterrows():
         with st.expander(f"**{row['name']}** - Score: {round(row['match_score'],2)}%"):
