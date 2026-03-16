@@ -232,9 +232,9 @@ def match_jobs_auto(cv_summary, job_interest, df_jobs):
 
     prompts = []
     for _, row in df.iterrows():
-        prompts.append(f"Summarize job in 30 words:\n{row['description'][:1000]}")
+        prompts.append(f"Summarize job in 50 words:\n{row['description'][:1000]}")
         prompts.append(f"Why fit? 50 words:\nJob: {row['title']}\nMy CV: {cv_summary}\nInterests: {job_interest}")
-    responses = generate_batch(prompts, max_tokens_per=60)
+    responses = generate_batch(prompts, max_tokens_per=100)
 
     summaries = []
     reasons = []
@@ -262,10 +262,10 @@ def match_profiles_auto(cv_summary, job_interest, df_profiles):
 
     prompts = []
     for _, row in df.iterrows():
-        prompts.append(f"Summarize mentor profile in 30 words:\n{row['summary']}")
+        prompts.append(f"Summarize mentor profile in 50 words:\n{row['summary']}")
         prompts.append(f"Why mentor match? 50 words:\n{row['headline']}\nMy CV: {cv_summary}")
-        prompts.append(f"30-word LinkedIn message to {row['name']} for 15min career chat, casual style.")
-    res = generate_batch(prompts, max_tokens_per=60)
+        prompts.append(f"50-word LinkedIn message to {row['name']} for 15min career chat, casual style.")
+    res = generate_batch(prompts, max_tokens_per=100)
 
     summaries = []
     reasons = []
