@@ -14,24 +14,51 @@ from pathlib import Path
 def add_highlighted_button_css():
     st.markdown("""
     <style>
-    /* Sidebar buttons (original style) */
-    div[data-testid="stSidebar"] button {
-        background-color: #f02d2d !important;
+    /* -------------------------- */
+    /* Sidebar Buttons (All) */
+    /* -------------------------- */
+    button[data-testid="stBaseButton-secondary"] {
+        background-color: #0A66C2 !important; /* LinkedIn primary blue */
         color: white !important;
-        margin-bottom: 8px !important;
-    }
-    /* Custom link buttons (LinkedIn/job links) */
-    .link-button {
-        background-color: #0077b5 !important; /* LinkedIn blue */
-        color: white !important;
+        font-family: 'Segoe UI', sans-serif !important;
+        font-weight: bold !important;
         border: none !important;
         border-radius: 4px !important;
-        padding: 4px 12px !important;
-        font-size: 14px !important;
-        cursor: pointer !important;
+        margin-bottom: 8px !important;
+        padding: 8px 16px !important;
     }
-    .link-button:hover {
-        background-color: #005582 !important; /* Darker LinkedIn blue on hover */
+    div[data-testid="stSidebar"] button:hover {
+        background-color: #005582 !important; /* Darker LinkedIn blue */
+    }
+
+    /* -------------------------- */
+    /* Native st.link_button (All) */
+    /* -------------------------- */
+    div[data-testid="stLinkButton"] button {
+        background-color: #0A66C2 !important; /* LinkedIn blue */
+        color: white !important;
+        font-family: 'Segoe UI', sans-serif !important;
+        font-weight: bold !important;
+        border: none !important;
+        border-radius: 4px !important;
+    }
+    a[data-testid="stLinkButton"] button:hover {
+        background-color: #005582 !important; /* Darker hover */
+    }
+
+    /* -------------------------- */
+    /* Primary Buttons (e.g., Process CV) */
+    /* -------------------------- */
+    button[data-testid="stBaseButton-primary"] {
+        background-color: #0A66C2 !important; /* LinkedIn blue */
+        color: white !important;
+        font-family: 'Segoe UI', sans-serif !important;
+        font-weight: bold !important;
+        border: none !important;
+        border-radius: 4px !important;
+    }
+    button[data-testid="baseButton-primary"]:hover {
+        background-color: #005582 !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -45,10 +72,10 @@ AZURE_API_VERSION = st.secrets.get("AZURE_API_VERSION", "2024-02-15-preview")
 AZURE_MODEL = st.secrets.get("AZURE_MODEL", "")
 
 SEMANTIC_MODEL = "all-MiniLM-L6-v2"
-MAX_JOBS = 10
-MAX_PROFILES = 5
-RANDOM_JOBS = 100
-RANDOM_PROFILES = 100
+MAX_JOBS = 3
+MAX_PROFILES = 3
+RANDOM_JOBS = 10
+RANDOM_PROFILES = 10
 
 # ────────────────────────────────────────────────
 #  SESSION STATE
@@ -326,9 +353,11 @@ def page_matched_jobs():
 
                 if job_url:
                     # LinkedIn-style button for job link
-                    st.markdown(
-                        f'<a href="{job_url}" target="_blank" class="link-button">View Job on LinkedIn</a>',
-                        unsafe_allow_html=True
+                    st.link_button(
+                        label="View Job on LinkedIn",
+                        url=job_url,
+                        use_container_width=True,
+                        type="primary"
                     )
 
 def page_matched_profiles():
@@ -362,9 +391,11 @@ def page_matched_profiles():
                 # Create LinkedIn profile button
                 if "public_identifier" in row and row["public_identifier"]:
                     linkedin_url = f"https://linkedin.com/in/{row['public_identifier']}"
-                    st.markdown(
-                        f'<a href="{linkedin_url}" target="_blank" class="link-button">View LinkedIn Profile</a>',
-                        unsafe_allow_html=True
+                    st.link_button(
+                        label="View LinkedIn Profile",
+                        url=linkedin_url,
+                        use_container_width=True,
+                        type="primary"
                     )
 
 # ────────────────────────────────────────────────
