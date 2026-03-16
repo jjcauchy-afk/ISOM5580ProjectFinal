@@ -209,3 +209,4 @@ app.py.bak
 jobs - Copy.csv
 profiles - 10000.json
 .streamlit/
+.vs/
