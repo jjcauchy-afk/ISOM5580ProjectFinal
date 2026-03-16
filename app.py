@@ -15,31 +15,40 @@ def add_highlighted_button_css():
     st.markdown("""
     <style>
     /* Sidebar buttons */
-    div[data-testid="stButton"] button {
-        background-color: #FF0000; 
+    div[data-testid="stButton"] button[data-testid="stBaseButton-secondary"] {
     }
     div[data-testid="stButton"] button:hover {
     }
 
     /* Uploader button */
     div[data-testid="stFileUploader"] button {
-        background-color: #FFA500; 
     }
     div[data-testid="stFileUploader"] button:hover {
     }
 
     /* Process CV button */
-    div[data-testid="stBaseButton-primary"] button {
-        background-color: #FFFF00; 
+    div[data-testid="stButton"] button[data-testid="stBaseButton-primary"] {
     }
     div[data-testid="stBaseButton-primary"] button:hover {
     }
 
     /* LinkedIn buttons */
-    div[data-testid="stLinkButton"] button {
-        background-color: #008000; 
+    div[data-testid="stLinkButton"] a {
+        display: inline-block;
+        background-color: #0077B5;    
+        color: white;                  
+        padding: 10px 20px;           
+        border-radius: 5px;   
+        border-color: #005582; 
+        transition: background-color 0.3s ease; /* Smooth transition */
     }
-    a[data-testid="stLinkButton"] button:hover {
+    div[data-testid="stLinkButton"] a p {
+        font-weight: bold;             
+        font-size: 16px;
+        text-align:center;
+    }
+    div[data-testid="stLinkButton"] a:hover {
+        background-color: #005582; 
     }
     </style>
     """, unsafe_allow_html=True)
@@ -274,7 +283,7 @@ def page_upload_cv():
     with col1:
         file = st.file_uploader("PDF/DOCX only", type=["pdf","docx"])
     with col2:
-        st.session_state.job_interest = st.text_area("Target roles, locations, skills", value=st.session_state.job_interest, height=140).strip()
+        st.session_state.job_interest = st.text_area("Target roles, locations, skills", placeholder="e.g., Software Engineer\nSkills: Python, Machine Learning", value=st.session_state.job_interest, height=140).strip()
     if st.button("✅ Process CV", type="primary", use_container_width=True):
         if file:
             txt = parse_cv(file)
