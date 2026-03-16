@@ -7,6 +7,7 @@ import numpy as np
 import pypdf
 import docx2txt
 from pathlib import Path
+import time
 
 # ────────────────────────────────────────────────
 #  CSS (UPDATED FOR BETTER BUTTON STYLING)
@@ -171,7 +172,7 @@ def generate_batch(prompts, max_tokens_per=100):
 # ────────────────────────────────────────────────
 #  HELPERS
 # ────────────────────────────────────────────────
-def parse_cv(uploaded_file):
+def cv_parse(uploaded_file):
     if not uploaded_file:
         return ""
     ext = Path(uploaded_file.name).suffix.lower()
@@ -184,12 +185,17 @@ def parse_cv(uploaded_file):
         st.error("CV read error")
     return ""
 
-def analyze_cv(cv_text):
+def cv_summary(cv_text):
     if not cv_text:
         return "", ""
     sum_txt = generate_text("Summarize CV in 4-6 sentences (max 150 words):\n"+cv_text, 200)
+    return sum_txt
+
+def cv_suggestion(cv_text):
+    if not cv_text:
+        return "", ""
     sug_txt = generate_text("5 bullet CV improvements (max 50 words each):\n"+cv_text, 200)
-    return sum_txt, sug_txt
+    return sug_txt
 
 @st.cache_data
 def load_jobs_data():
@@ -219,7 +225,7 @@ def match_jobs_auto(cv_summary, job_interest, df_jobs):
     df["combined_text"] = df["title"] + " " + df["description"]
     cv_emb = embedder.encode(cv_summary, convert_to_tensor=True)
     int_emb = embedder.encode(job_interest, convert_to_tensor=True) if job_interest else cv_emb
-    q_emb = (cv_emb + int_emb)/2
+    q_emb = (cv_emb + int_emb * 2)/3
     j_emb = embedder.encode(df["combined_text"].tolist(), convert_to_tensor=True)
     df["match_score"] = np.round(util.cos_sim(q_emb, j_emb)[0].cpu().numpy()*100,2)
     df = df.sort_values("match_score", ascending=False).head(MAX_JOBS).reset_index(drop=True)
@@ -281,16 +287,18 @@ def page_upload_cv():
     st.header("Upload CV and Job Interests")
     col1, col2 = st.columns(2)
     with col1:
-        file = st.file_uploader("PDF/DOCX only", type=["pdf","docx"])
+        file = st.file_uploader("Upload your CV", type=["pdf","docx"])
     with col2:
-        st.session_state.job_interest = st.text_area("Target roles, locations, skills", placeholder="e.g., Software Engineer\nSkills: Python, Machine Learning", value=st.session_state.job_interest, height=140).strip()
-    if st.button("✅ Process CV", type="primary", use_container_width=True):
+        st.session_state.job_interest = st.text_area("Your job interest", placeholder="e.g., Software Engineer\nSkills: Python, Machine Learning", value=st.session_state.job_interest, height=140).strip()
+    if st.button("Click to Process CV", type="primary", use_container_width=True):
         if file:
-            txt = parse_cv(file)
+            txt = cv_parse(file)
             if txt:
                 st.session_state.cv_text = txt
-                st.session_state.cv_summary = analyze_cv(txt)[0]
-                st.success("✅ CV processed!")
+                with st.spinner("Executing task...", show_time=True):
+                    start_time = time.time()
+                    st.session_state.cv_summary = cv_summary(txt)
+                    st.success(f"CV processed in {round(time.time() - start_time, 2)}s")
     if st.session_state.cv_summary:
         st.divider()
         st.subheader("📊 CV Summary")
@@ -302,7 +310,10 @@ def page_cv_suggestions():
         st.warning("Upload CV first")
         return
     if not st.session_state.cv_suggestions:
-        st.session_state.cv_suggestions = analyze_cv(st.session_state.cv_text)[1]
+        with st.spinner("Executing task...", show_time=True):
+            start_time = time.time()
+            st.session_state.cv_suggestions = cv_suggestion(st.session_state.cv_text)
+            st.success(f"CV suggestions processed in {round(time.time() - start_time, 2)}s")
     st.markdown(st.session_state.cv_suggestions)
 
 def page_matched_jobs():
@@ -314,14 +325,17 @@ def page_matched_jobs():
         st.session_state.df_jobs = load_jobs_data()
     
     if st.session_state.matched_jobs.empty:
-        st.session_state.matched_jobs = match_jobs_auto(
-            st.session_state.cv_summary,
-            st.session_state.job_interest,
-            st.session_state.df_jobs
-        )
+        with st.spinner("Executing task...", show_time=True):
+            start_time = time.time()
+            st.session_state.matched_jobs = match_jobs_auto(
+                st.session_state.cv_summary,
+                st.session_state.job_interest,
+                st.session_state.df_jobs
+            )
+            st.success(f"Matched jobs processed in {round(time.time() - start_time, 2)}s")
     
     for _, row in st.session_state.matched_jobs.iterrows():
-        with st.expander(f"{row['title']} | {row['match_score']}%"):
+        with st.expander(f"{row['title']} | {round(row['match_score'],2)}%"):
             col1, col2 = st.columns([3, 1])  # Split for content + button
             with col1:
                 st.write(f"**Company**: {row.get('company')}")
@@ -361,14 +375,17 @@ def page_matched_profiles():
         st.session_state.df_profiles = df
     
     if st.session_state.matched_profiles.empty:
-        st.session_state.matched_profiles = match_profiles_auto(
-            st.session_state.cv_summary,
-            st.session_state.job_interest,
-            st.session_state.df_profiles
-        )
+        with st.spinner("Executing task...", show_time=True):
+            start_time = time.time()
+            st.session_state.matched_profiles = match_profiles_auto(
+                st.session_state.cv_summary,
+                st.session_state.job_interest,
+                st.session_state.df_profiles
+            )
+            st.success(f"Matched mentors processed in {round(time.time() - start_time, 2)}s")
     
     for _, row in st.session_state.matched_profiles.iterrows():
-        with st.expander(f"{row['name']} | {row['match_score']}%"):
+        with st.expander(f"{row['name']} | {round(row['match_score'],2)}%"):
             col1, col2 = st.columns([3, 1])  # Split for content + button
             with col1:
                 st.write(f"**Headline**: {row.get('headline')}")
@@ -397,7 +414,7 @@ def main():
         st.title("🌉 Menu")
         if st.button("📄 Upload CV", use_container_width=True):
             st.session_state.current_page = "upload_cv"
-        if st.button("💡 CV Tips", use_container_width=True):
+        if st.button("💡 CV Suggestions", use_container_width=True):
             st.session_state.current_page = "cv_suggestions"
         if st.button("🔍 Jobs", use_container_width=True):
             st.session_state.current_page = "matched_jobs"
