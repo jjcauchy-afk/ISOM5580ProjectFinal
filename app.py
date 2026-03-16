@@ -14,51 +14,32 @@ from pathlib import Path
 def add_highlighted_button_css():
     st.markdown("""
     <style>
-    /* -------------------------- */
-    /* Sidebar Buttons (All) */
-    /* -------------------------- */
-    button[data-testid="stBaseButton-secondary"] {
-        background-color: #0A66C2 !important; /* LinkedIn primary blue */
-        color: white !important;
-        font-family: 'Segoe UI', sans-serif !important;
-        font-weight: bold !important;
-        border: none !important;
-        border-radius: 4px !important;
-        margin-bottom: 8px !important;
-        padding: 8px 16px !important;
+    /* Sidebar buttons */
+    div[data-testid="stButton"] button {
+        background-color: #FF0000; 
     }
-    div[data-testid="stSidebar"] button:hover {
-        background-color: #005582 !important; /* Darker LinkedIn blue */
+    div[data-testid="stButton"] button:hover {
     }
 
-    /* -------------------------- */
-    /* Native st.link_button (All) */
-    /* -------------------------- */
+    /* Uploader button */
+    div[data-testid="stFileUploader"] button {
+        background-color: #FFA500; 
+    }
+    div[data-testid="stFileUploader"] button:hover {
+    }
+
+    /* Process CV button */
+    div[data-testid="stBaseButton-primary"] button {
+        background-color: #FFFF00; 
+    }
+    div[data-testid="stBaseButton-primary"] button:hover {
+    }
+
+    /* LinkedIn buttons */
     div[data-testid="stLinkButton"] button {
-        background-color: #0A66C2 !important; /* LinkedIn blue */
-        color: white !important;
-        font-family: 'Segoe UI', sans-serif !important;
-        font-weight: bold !important;
-        border: none !important;
-        border-radius: 4px !important;
+        background-color: #008000; 
     }
     a[data-testid="stLinkButton"] button:hover {
-        background-color: #005582 !important; /* Darker hover */
-    }
-
-    /* -------------------------- */
-    /* Primary Buttons (e.g., Process CV) */
-    /* -------------------------- */
-    button[data-testid="stBaseButton-primary"] {
-        background-color: #0A66C2 !important; /* LinkedIn blue */
-        color: white !important;
-        font-family: 'Segoe UI', sans-serif !important;
-        font-weight: bold !important;
-        border: none !important;
-        border-radius: 4px !important;
-    }
-    button[data-testid="baseButton-primary"]:hover {
-        background-color: #005582 !important;
     }
     </style>
     """, unsafe_allow_html=True)
