@@ -91,6 +91,10 @@ if 'df_profiles' not in st.session_state:
     st.session_state.df_profiles = pd.DataFrame()
 if 'current_page' not in st.session_state:
     st.session_state.current_page = "upload_cv"
+if 'j_emb' not in st.session_state:
+    st.session_state.j_emb = None
+if 'p_emb' not in st.session_state:
+    st.session_state.p_emb = None
 
 # ────────────────────────────────────────────────
 #  AUTO-RESET
@@ -218,25 +222,38 @@ def load_profiles_data():
 # ────────────────────────────────────────────────
 #  JOB MATCHING
 # ────────────────────────────────────────────────
-def match_jobs_auto(cv_summary, job_interest, df_jobs):
-    # Initialize timing variables
-    semantic_time = 0.0
-    openai_time = 0.0
+def match_jobs_auto(cv_summary, job_interest):
+    if st.session_state.df_jobs.empty:
+        st.error("Job not available in session.")
+        return pd.DataFrame(), 0, 0
+    df = st.session_state.df_jobs.copy()
+
+    # Compute job embeddings 
+    if st.session_state.j_emb is None:
+        with st.spinner("Computing job embeddings (done only once per session)..."):
+            start = time.time()
+            texts = (df["title"] + " " + df["description"]).tolist()
+            st.session_state.j_emb = embedder.encode(
+                texts,
+                convert_to_tensor=True,
+                show_progress_bar=True,
+                batch_size=32          
+            )
+            j_emb_time = round(time.time() - start, 2)
+            st.success(f"Job embeddings ready ({j_emb_time}s)")
     
-    if df_jobs.empty or not cv_summary:
-        return pd.DataFrame(), semantic_time, openai_time
-    
+    # Semantic search
     semantic_start = time.time()
-    df = df_jobs.copy()
-    df["combined_text"] = df["title"] + " " + df["description"]
     cv_emb = embedder.encode(cv_summary, convert_to_tensor=True)
     int_emb = embedder.encode(job_interest, convert_to_tensor=True) if job_interest else cv_emb
-    q_emb = (cv_emb + int_emb * 2)/3
-    j_emb = embedder.encode(df["combined_text"].tolist(), convert_to_tensor=True)
-    df["match_score"] = np.round(util.cos_sim(q_emb, j_emb)[0].cpu().numpy()*100,2)
+    q_emb = (cv_emb + int_emb)/2
+    j_emb = st.session_state.j_emb
+
+    df["match_score"] = np.round(util.cos_sim(q_emb, j_emb)[0].cpu().numpy() * 100, 2)
     df = df.sort_values("match_score", ascending=False).head(MAX_JOBS).reset_index(drop=True)
     semantic_time = round(time.time() - semantic_start, 2)
-    
+
+    # OpenAI
     openai_start = time.time()
     prompts = []
     for _, row in df.iterrows():
@@ -258,25 +275,38 @@ def match_jobs_auto(cv_summary, job_interest, df_jobs):
 # ────────────────────────────────────────────────
 #  MENTOR MATCHING
 # ────────────────────────────────────────────────
-def match_profiles_auto(cv_summary, job_interest, df_profiles):
-    # Initialize timing variables
-    semantic_time = 0.0
-    openai_time = 0.0
-    
-    if df_profiles.empty or not cv_summary:
-        return pd.DataFrame(), semantic_time, openai_time
-    
+def match_profiles_auto(cv_summary, job_interest):
+    if st.session_state.df_profiles.empty:
+        st.error("Profiles not available in session.")
+        return pd.DataFrame(), 0, 0
+    df = st.session_state.df_profiles.copy()
+
+    # Compute profile embeddings only once
+    if st.session_state.p_emb is None:
+        with st.spinner("Computing profile embeddings (done only once per session)..."):
+            start = time.time()
+            texts = (st.session_state.df_profiles["headline"].fillna("") + " " + st.session_state.df_profiles["summary"].fillna("")).tolist()
+            st.session_state.p_emb = embedder.encode(
+                texts,
+                convert_to_tensor=True,
+                show_progress_bar=True,
+                batch_size=32
+            )
+            p_emb_time = round(time.time() - start, 2)
+            st.success(f"Profile embeddings ready ({p_emb_time}s)")
+
+    # Semantic search
     semantic_start = time.time()
-    df = df_profiles.copy()
-    df["combined_text"] = df["headline"].fillna("") + " " + df["summary"].fillna("")
     cv_emb = embedder.encode(cv_summary, convert_to_tensor=True)
     int_emb = embedder.encode(job_interest, convert_to_tensor=True) if job_interest else cv_emb
     q_emb = (cv_emb + int_emb)/2
-    p_emb = embedder.encode(df["combined_text"].tolist(), convert_to_tensor=True)
-    df["match_score"] = np.round(util.cos_sim(q_emb, p_emb)[0].cpu().numpy()*100,2)
+    p_emb = st.session_state.p_emb
+
+    df["match_score"] = np.round(util.cos_sim(q_emb, p_emb)[0].cpu().numpy() * 100, 2)
     df = df.sort_values("match_score", ascending=False).head(MAX_PROFILES).reset_index(drop=True)
     semantic_time = round(time.time() - semantic_start, 2)
-    
+
+    # OpenAI
     openai_start = time.time()
     prompts = []
     for _, row in df.iterrows():
@@ -341,6 +371,7 @@ def page_matched_jobs():
     if not st.session_state.cv_summary:
         st.warning("Upload CV first")
         return
+
     if st.session_state.df_jobs.empty:
         st.session_state.df_jobs = load_jobs_data()
     
@@ -348,8 +379,7 @@ def page_matched_jobs():
         with st.spinner("Executing task...", show_time=True):
             matched_jobs_df, semantic_time, openai_time = match_jobs_auto(
                 st.session_state.cv_summary,
-                st.session_state.job_interest,
-                st.session_state.df_jobs
+                st.session_state.job_interest
             )
             st.session_state.matched_jobs = matched_jobs_df
             st.success(f"Matched jobs processed - Semantic Search: {semantic_time}s | OpenAI: {openai_time}s")
@@ -389,6 +419,7 @@ def page_matched_profiles():
     if not st.session_state.cv_summary:
         st.warning("Upload CV first")
         return
+
     if st.session_state.df_profiles.empty:
         df = load_profiles_data()
         df = df.dropna(subset=['headline','summary']).query("headline!='' & summary!=''")
@@ -398,8 +429,7 @@ def page_matched_profiles():
         with st.spinner("Executing task...", show_time=True):
             matched_profiles_df, semantic_time, openai_time = match_profiles_auto(
                 st.session_state.cv_summary,
-                st.session_state.job_interest,
-                st.session_state.df_profiles
+                st.session_state.job_interest
             )
             st.session_state.matched_profiles = matched_profiles_df
             st.success(f"Matched mentors processed - Semantic Search: {semantic_time}s | OpenAI: {openai_time}s")
