@@ -210,3 +210,4 @@ jobs - Copy.csv
 profiles - 10000.json
 .streamlit/
 .vs/
+.vs/slnx.sqlite
