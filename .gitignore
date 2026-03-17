@@ -206,9 +206,7 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 app.py.bak
-jobs - Copy.csv
 profiles - 10000.json
 .streamlit/
 .vs/
-.vs/slnx.sqlite
 .vs/slnx.sqlite
