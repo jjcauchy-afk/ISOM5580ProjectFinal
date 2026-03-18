@@ -210,3 +210,4 @@ profiles - 10000.json
 .streamlit/
 .vs/
 .vs/slnx.sqlite
+/.vs/slnx.sqlite
