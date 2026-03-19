@@ -9,6 +9,7 @@ import docx2txt
 from pathlib import Path
 import time
 import datetime  # <-- Import datetime
+import pytz
 
 # ────────────────────────────────────────────────
 #  CSS
@@ -334,9 +335,11 @@ def match_profiles_auto(cv_summary, job_interest):
 #  PAGES 
 # ────────────────────────────────────────────────
 def page_upload_cv():
+    local_tz = pytz.timezone("Asia/Hong_Kong")  # Replace with your local timezone if different
+    local_time = datetime.datetime.now(local_tz).strftime('%y%m%d_%H%M')
+
     st.title("🌉 CareerBridge AI")
-    st.header(f"Upload CV and Job Interests")
-    st.write(f"(version: {datetime.datetime.now().strftime('%y%m%d_%H%M')})")
+    st.header(f"Upload CV and Job Interests (Timestamp: {local_time})")
     col1, col2 = st.columns(2)
     with col1:
         file = st.file_uploader("Upload your CV", type=["pdf","docx"])
@@ -351,6 +354,7 @@ def page_upload_cv():
                     start_time = time.time()
                     st.session_state.cv_summary = cv_summary(txt)
                     st.success(f"CV processed in {round(time.time() - start_time, 2)}s")
+
     if st.session_state.cv_summary:
         st.divider()
         st.subheader("📊 CV Summary")
