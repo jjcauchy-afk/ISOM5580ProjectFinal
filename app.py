@@ -335,11 +335,10 @@ def match_profiles_auto(cv_summary, job_interest):
 #  PAGES 
 # ────────────────────────────────────────────────
 def page_upload_cv():
-    local_tz = pytz.timezone("Asia/Hong_Kong")  # Replace with your local timezone if different
-    local_time = datetime.datetime.now(local_tz).strftime('%y%m%d_%H%M')
-
     st.title("🌉 CareerBridge AI")
-    st.header(f"Upload CV and Job Interests (Timestamp: {local_time})")
+    st.header(f"Upload CV and Job Interests")
+    st.write(f"(version: {datetime.datetime.now(pytz.timezone("Asia/Hong_Kong")).strftime('%y%m%d_%H%M')})")
+
     col1, col2 = st.columns(2)
     with col1:
         file = st.file_uploader("Upload your CV", type=["pdf","docx"])
