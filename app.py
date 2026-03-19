@@ -471,9 +471,9 @@ def main():
             st.session_state.current_page = "upload_cv"
         if st.button("💡 CV Suggestions", use_container_width=True):
             st.session_state.current_page = "cv_suggestions"
-        if st.button("🔍 Jobs", use_container_width=True):
+        if st.button("🔍 Match Jobs", use_container_width=True):
             st.session_state.current_page = "matched_jobs"
-        if st.button("👥 Mentors", use_container_width=True):
+        if st.button("👥 Look for Mentors", use_container_width=True):
             st.session_state.current_page = "matched_profiles"
 
     pages = {
