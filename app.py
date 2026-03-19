@@ -343,7 +343,7 @@ def page_upload_cv():
     with col1:
         file = st.file_uploader("Upload your CV", type=["pdf","docx"])
     with col2:
-        st.session_state.job_interest = st.text_area("Your job interest", placeholder="e.g., Software Engineer\nSkills: Python, Machine Learning", value=st.session_state.job_interest, height=140).strip()
+        st.session_state.job_interest = st.text_area("Your job interest (optional)", placeholder="e.g., Software Engineer\nSkills: Python, Machine Learning", value=st.session_state.job_interest, height=140).strip()
     if st.button("Click to Process CV", type="primary", use_container_width=True):
         if file:
             txt = cv_parse(file)
