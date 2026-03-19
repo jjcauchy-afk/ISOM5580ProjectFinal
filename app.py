@@ -334,7 +334,7 @@ def match_profiles_auto(cv_summary, job_interest):
 # ────────────────────────────────────────────────
 def page_upload_cv():
     st.title("🌉 CareerBridge AI")
-    st.header("Upload CV and Job Interests vs")
+    st.header("Upload CV and Job Interests 4")
     col1, col2 = st.columns(2)
     with col1:
         file = st.file_uploader("Upload your CV", type=["pdf","docx"])
