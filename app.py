@@ -261,7 +261,7 @@ def match_jobs_auto(cv_summary, job_interest):
                 st.session_state.j_emb = pickle.load(f)
             st.success("Job embeddings loaded from cache.")
         else:
-            with st.spinner("Computing job embeddings (done only once after reset embeddings)..."):
+            with st.spinner("Computing job embeddings (done only once after embeddings reset, about 3 minutes)..."):
                 start = time.time()
                 texts = (df["position"] + " " + df["description"] + " " + df["requirement"]).tolist()
                 st.session_state.j_emb = embedder.encode(
@@ -322,7 +322,7 @@ def match_profiles_auto(cv_summary, job_interest):
                 st.session_state.p_emb = pickle.load(f)
             st.success("Profile embeddings loaded from cache.")
         else:
-            with st.spinner("Computing profile embeddings (done only once after reset embeddings)..."):
+            with st.spinner("Computing profile embeddings (done only once after embeddings reset, about 1 minute)..."):
                 start = time.time()
                 texts = (st.session_state.df_profiles["position"].fillna("") + " " + st.session_state.df_profiles["about"].fillna("")).tolist()
                 st.session_state.p_emb = embedder.encode(
