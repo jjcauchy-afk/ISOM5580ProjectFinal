@@ -261,7 +261,7 @@ def match_jobs_auto(cv_summary, job_interest):
                 st.session_state.j_emb = pickle.load(f)
             st.success("Job embeddings loaded from cache.")
         else:
-            with st.spinner("Computing job embeddings (done only once per session)..."):
+            with st.spinner("Computing job embeddings (done only once after reset embeddings)..."):
                 start = time.time()
                 texts = (df["position"] + " " + df["description"] + " " + df["requirement"]).tolist()
                 st.session_state.j_emb = embedder.encode(
@@ -322,7 +322,7 @@ def match_profiles_auto(cv_summary, job_interest):
                 st.session_state.p_emb = pickle.load(f)
             st.success("Profile embeddings loaded from cache.")
         else:
-            with st.spinner("Computing profile embeddings (done only once per session)..."):
+            with st.spinner("Computing profile embeddings (done only once after reset embeddings)..."):
                 start = time.time()
                 texts = (st.session_state.df_profiles["position"].fillna("") + " " + st.session_state.df_profiles["about"].fillna("")).tolist()
                 st.session_state.p_emb = embedder.encode(
@@ -577,7 +577,7 @@ def page_info():
     - **Frontend** 💻: Built with Streamlit for an interactive web interface.
     - **AI Models** 🧠: Uses Azure OpenAI for text generation and Sentence Transformers for semantic similarity matching.
     - **Data Processing** 📊: Handles PDF and DOCX files for CV parsing, with embeddings computed for efficient job and profile matching.
-    - **Caching** ⚡: Employs Streamlit's caching for models and data to optimize performance.
+    - **Caching** ⚡: Employs Streamlit's caching for models and data, plus persistent disk caching for embeddings to optimize performance across sessions.
     - **Session Management** 🔄: Maintains user state across pages for a seamless experience.
     """)
 
