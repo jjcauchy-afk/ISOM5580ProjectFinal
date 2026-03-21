@@ -462,6 +462,37 @@ def page_matched_jobs():
                     st.session_state.current_page = "target_job"
                     st.rerun()
 
+def page_target_job():
+    st.title("🎯 Target Job Tailoring")
+    if not st.session_state.cv_summary:
+        st.warning("Upload your CV first")
+        return
+    st.write("Enter the job description you want to tailor your CV for.")
+    job_desc = st.text_area("Target Job Description", value=st.session_state.target_job_desc, height=200)
+    if st.button("Tailor CV for Job", type="primary", use_container_width=True):
+        if job_desc.strip():
+            with st.spinner("Processing...", show_time=True):
+                start_time = time.time()
+                # Improvement 1: CV content improvements
+                prompt1 = f"Based on CV summary: {st.session_state.cv_summary}, suggest specific improvements to CV content to better match this job: {job_desc}. Provide 3-5 bullet points."
+                st.session_state.cv_improvements = generate_text(prompt1, max_tokens=600)
+                # Improvement 2: Candidate short/long term improvements
+                prompt2 = f"Based on CV summary: {st.session_state.cv_summary}, suggest improvements for the candidate to better qualify for this job: {job_desc}. Provide 3-5 bullet points."
+                st.session_state.candidate_improvements = generate_text(prompt2, max_tokens=600)
+                st.success(f"Processed in {round(time.time() - start_time, 2)}s")
+        else:
+            st.error("Please enter a job description.")
+    
+    if st.session_state.cv_improvements or st.session_state.candidate_improvements:
+        st.divider()
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("📄 CV Content Improvements")
+            st.markdown(st.session_state.cv_improvements)
+        with col2:
+            st.subheader("🚀 Candidate Development Suggestions")
+            st.markdown(st.session_state.candidate_improvements)
+
 def page_matched_profiles():
     st.title("👥 Career Mentors")
     if not st.session_state.cv_summary:
@@ -502,36 +533,32 @@ def page_matched_profiles():
                         type="primary"
                     )
 
-def page_target_job():
-    st.title("🎯 Target Job Tailoring")
-    if not st.session_state.cv_summary:
-        st.warning("Upload your CV first")
-        return
-    st.write("Enter the job description you want to tailor your CV for.")
-    job_desc = st.text_area("Target Job Description", value=st.session_state.target_job_desc, height=200)
-    if st.button("Tailor CV for Job", type="primary", use_container_width=True):
-        if job_desc.strip():
-            with st.spinner("Processing...", show_time=True):
-                start_time = time.time()
-                # Improvement 1: CV content improvements
-                prompt1 = f"Based on CV summary: {st.session_state.cv_summary}, suggest specific improvements to CV content to better match this job: {job_desc}. Provide 3-5 bullet points."
-                st.session_state.cv_improvements = generate_text(prompt1, max_tokens=600)
-                # Improvement 2: Candidate short/long term improvements
-                prompt2 = f"Based on CV summary: {st.session_state.cv_summary}, suggest improvements for the candidate to better qualify for this job: {job_desc}. Provide 3-5 bullet points."
-                st.session_state.candidate_improvements = generate_text(prompt2, max_tokens=600)
-                st.success(f"Processed in {round(time.time() - start_time, 2)}s")
-        else:
-            st.error("Please enter a job description.")
+def page_info():
+    st.title("ℹ️ About CareerBridge AI")
     
-    if st.session_state.cv_improvements or st.session_state.candidate_improvements:
-        st.divider()
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("📄 CV Content Improvements")
-            st.markdown(st.session_state.cv_improvements)
-        with col2:
-            st.subheader("🚀 Candidate Development Suggestions")
-            st.markdown(st.session_state.candidate_improvements)
+    st.header("🚀 App Summary")
+    st.write("""
+    CareerBridge AI is a Streamlit-based application designed to assist users in their career development. It leverages AI to analyze CVs, provide personalized suggestions, match job opportunities, and connect with potential mentors. The app uses semantic search and generative AI to deliver tailored insights and recommendations. 
+    """)
+    
+    st.header("📖 Quick User Guide")
+    st.write("""
+    1. **Upload CV** 📄: On the main page, upload your CV (PDF or DOCX) or select a sample CV. Optionally, enter your job interests.
+    2. **Process CV** ⚙️: Click "Click to Process CV" to generate a summary.
+    3. **CV Suggestions** 💡: Navigate to get AI-generated improvement suggestions for your CV.
+    4. **Match Jobs** 🔍: Find job matches based on your CV and interests, with options to tailor for specific jobs.
+    5. **Target Job Tailoring** 🎯: Enter a job description to receive CV improvements and development suggestions.
+    6. **Look for Mentors** 👥: Discover potential career mentors and get LinkedIn message templates.
+    """)
+    
+    st.header("🛠️ System Design Summary")
+    st.write("""
+    - **Frontend** 💻: Built with Streamlit for an interactive web interface.
+    - **AI Models** 🧠: Uses Azure OpenAI for text generation and Sentence Transformers for semantic similarity matching.
+    - **Data Processing** 📊: Handles PDF and DOCX files for CV parsing, with embeddings computed for efficient job and profile matching.
+    - **Caching** ⚡: Employs Streamlit's caching for models and data to optimize performance.
+    - **Session Management** 🔄: Maintains user state across pages for a seamless experience.
+    """)
 
 # ────────────────────────────────────────────────
 #  NAVIGATION
@@ -550,13 +577,16 @@ def main():
             st.session_state.current_page = "target_job"
         if st.button("👥 Look for Mentors", use_container_width=True):
             st.session_state.current_page = "matched_profiles"
+        if st.button("ℹ️ Info", use_container_width=True):
+            st.session_state.current_page = "info"
 
     pages = {
         "upload_cv": page_upload_cv,
         "cv_suggestions": page_cv_suggestions,
         "target_job": page_target_job,
         "matched_jobs": page_matched_jobs,
-        "matched_profiles": page_matched_profiles
+        "matched_profiles": page_matched_profiles,
+        "info": page_info
     }
     pages[st.session_state.current_page]()
 
