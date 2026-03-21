@@ -11,6 +11,7 @@ import time
 import datetime
 import pytz
 from dotenv import load_dotenv
+import pickle
 
 # ────────────────────────────────────────────────
 #  CSS
@@ -82,6 +83,10 @@ MAX_JOBS = 10
 MAX_PROFILES = 10
 RANDOM_JOBS = 100
 RANDOM_PROFILES = 100
+
+# Cache paths for embeddings
+J_EMB_PATH = "j_emb.pkl"
+P_EMB_PATH = "p_emb.pkl"
 
 # ────────────────────────────────────────────────
 #  SESSION STATE
@@ -251,17 +256,25 @@ def match_jobs_auto(cv_summary, job_interest):
 
     # Compute job embeddings 
     if st.session_state.j_emb is None:
-        with st.spinner("Computing job embeddings (done only once per session)..."):
-            start = time.time()
-            texts = (df["position"] + " " + df["description"] + " " + df["requirement"]).tolist()
-            st.session_state.j_emb = embedder.encode(
-                texts,
-                convert_to_tensor=True,
-                show_progress_bar=True,
-                batch_size=32          
-            )
-            j_emb_time = round(time.time() - start, 2)
-            st.success(f"Job embeddings ready ({j_emb_time}s)")
+        if os.path.exists(J_EMB_PATH):
+            with open(J_EMB_PATH, 'rb') as f:
+                st.session_state.j_emb = pickle.load(f)
+            st.success("Job embeddings loaded from cache.")
+        else:
+            with st.spinner("Computing job embeddings (done only once per session)..."):
+                start = time.time()
+                texts = (df["position"] + " " + df["description"] + " " + df["requirement"]).tolist()
+                st.session_state.j_emb = embedder.encode(
+                    texts,
+                    convert_to_tensor=True,
+                    show_progress_bar=True,
+                    batch_size=32          
+                )
+                j_emb_time = round(time.time() - start, 2)
+                st.success(f"Job embeddings ready ({j_emb_time}s)")
+                # Save to cache
+                with open(J_EMB_PATH, 'wb') as f:
+                    pickle.dump(st.session_state.j_emb, f)
     
     # Semantic search
     semantic_start = time.time()
@@ -304,17 +317,25 @@ def match_profiles_auto(cv_summary, job_interest):
 
     # Compute profile embeddings only once
     if st.session_state.p_emb is None:
-        with st.spinner("Computing profile embeddings (done only once per session)..."):
-            start = time.time()
-            texts = (st.session_state.df_profiles["position"].fillna("") + " " + st.session_state.df_profiles["about"].fillna("")).tolist()
-            st.session_state.p_emb = embedder.encode(
-                texts,
-                convert_to_tensor=True,
-                show_progress_bar=True,
-                batch_size=32
-            )
-            p_emb_time = round(time.time() - start, 2)
-            st.success(f"Profile embeddings ready ({p_emb_time}s)")
+        if os.path.exists(P_EMB_PATH):
+            with open(P_EMB_PATH, 'rb') as f:
+                st.session_state.p_emb = pickle.load(f)
+            st.success("Profile embeddings loaded from cache.")
+        else:
+            with st.spinner("Computing profile embeddings (done only once per session)..."):
+                start = time.time()
+                texts = (st.session_state.df_profiles["position"].fillna("") + " " + st.session_state.df_profiles["about"].fillna("")).tolist()
+                st.session_state.p_emb = embedder.encode(
+                    texts,
+                    convert_to_tensor=True,
+                    show_progress_bar=True,
+                    batch_size=32
+                )
+                p_emb_time = round(time.time() - start, 2)
+                st.success(f"Profile embeddings ready ({p_emb_time}s)")
+                # Save to cache
+                with open(P_EMB_PATH, 'wb') as f:
+                    pickle.dump(st.session_state.p_emb, f)
 
     # Semantic search
     semantic_start = time.time()
@@ -579,6 +600,16 @@ def main():
             st.session_state.current_page = "matched_profiles"
         if st.button("ℹ️ Info", use_container_width=True):
             st.session_state.current_page = "info"
+        
+        st.divider()
+        if st.button("🔄 Reset Embeddings", use_container_width=True):
+            if os.path.exists(J_EMB_PATH):
+                os.remove(J_EMB_PATH)
+            if os.path.exists(P_EMB_PATH):
+                os.remove(P_EMB_PATH)
+            st.session_state.j_emb = None
+            st.session_state.p_emb = None
+            st.success("Embeddings cache reset.")
 
     pages = {
         "upload_cv": page_upload_cv,
