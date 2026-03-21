@@ -293,7 +293,7 @@ def match_jobs_auto(cv_summary, job_interest):
     for _, row in df.iterrows():
         prompts.append(f"Summarize job in 50 words:\n{row['description'][:1000]}")
         prompts.append(f"Why fit? 50 words:\nJob: {row['position']}\nMy CV: {cv_summary}\nInterests: {job_interest}")
-    responses = generate_batch(prompts, max_tokens_per=60)
+    responses = generate_batch(prompts, max_tokens_per=100)
 
     summaries = []
     reasons = []
@@ -355,7 +355,7 @@ def match_profiles_auto(cv_summary, job_interest):
         prompts.append(f"Summarize mentor profile in 50 words:\n{row['about']}")
         prompts.append(f"Why mentor match? 50 words:\n{row['position']}\nMy CV: {cv_summary}")
         prompts.append(f"50-word LinkedIn message to {row['name']} for 15min career chat, casual style.")
-    res = generate_batch(prompts, max_tokens_per=60)
+    res = generate_batch(prompts, max_tokens_per=100)
 
     summaries = []
     reasons = []
@@ -432,6 +432,7 @@ def page_upload_cv():
 
 def page_cv_suggestions():
     st.title("💡 CV Suggestions")
+    st.write("Get AI-generated suggestions to improve your CV.")
     if not st.session_state.cv_text:
         st.warning("Upload your CV first")
         return
@@ -444,6 +445,7 @@ def page_cv_suggestions():
 
 def page_matched_jobs():
     st.title("🔍 Matched Jobs")
+    st.write("Discover job opportunities that match your CV and interests (top 10 listed).")
     if not st.session_state.cv_summary:
         st.warning("Upload your CV first")
         return
@@ -461,10 +463,9 @@ def page_matched_jobs():
             st.success(f"Matched jobs processed - Semantic Search: {semantic_time}s | OpenAI: {openai_time}s")
     
     for _, row in st.session_state.matched_jobs.iterrows():
-        with st.expander(f"**{row['position']}** - Score: {round(row['match_score'],2)}%"):
+        with st.expander(f"**{row['position']}, {row.get('company')}**- Score: {round(row['match_score'],2)}%"):
             col1, col2 = st.columns([3, 1])  
             with col1:
-                st.write(f"**Company**: {row.get('company')}")
                 st.write(f"**Location**: {row.get('location')}")
                 st.write(f"**Summary**:  \n{row.get('summary')}")
                 st.write(f"**Why Fit?**  \n{row.get('reason')}")
@@ -516,6 +517,7 @@ def page_target_job():
 
 def page_matched_profiles():
     st.title("👥 Career Mentors")
+    st.write("Find potential career mentors based on your profile (top 10 listed).")
     if not st.session_state.cv_summary:
         st.warning("Upload your CV first")
         return
