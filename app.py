@@ -337,7 +337,7 @@ def match_profiles_auto(cv_summary, job_interest):
 def page_upload_cv():
     st.title("🌉 CareerBridge AI")
     st.header(f"Your CV and Job Interests")
-    st.write(f"(version: {datetime.datetime.now(pytz.timezone("Asia/Hong_Kong")).strftime('%y%m%d_%H%M')}) 2")
+    st.write(f"(version: {datetime.datetime.now(pytz.timezone("Asia/Hong_Kong")).strftime('%y%m%d_%H%M')}) 1")
 
     col1, col2 = st.columns(2)
     with col1:
