@@ -231,7 +231,7 @@ def cv_suggestion(cv_text):
 def load_jobs_data():
     try:
         df = pd.read_csv("dataset_jobs.csv").fillna("")
-        df = df.drop_duplicates(subset=['url'])
+        df = df.drop_duplicates(subset=['position', 'company'])
         return df
     except Exception as e:
         st.error(f"Failed to load jobs data: {e}")
@@ -464,9 +464,10 @@ def page_matched_jobs():
             st.success(f"Matched jobs processed - Semantic Search: {semantic_time}s | OpenAI: {openai_time}s")
     
     for _, row in st.session_state.matched_jobs.iterrows():
-        with st.expander(f"**{row['position']}, {row.get('company')}**- Score: {round(row['match_score'],2)}%"):
+        with st.expander(f"**{row['position']}** - Score: {round(row['match_score'],2)}%"):
             col1, col2 = st.columns([3, 1])  
             with col1:
+                st.write(f"**Company**: {row.get('company')}")
                 st.write(f"**Location**: {row.get('location')}")
                 st.write(f"**Summary**:  \n{row.get('summary')}")
                 st.write(f"**Why Fit?**  \n{row.get('reason')}")
