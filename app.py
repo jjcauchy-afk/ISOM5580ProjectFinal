@@ -361,20 +361,44 @@ def page_upload_cv():
     version = dt.strftime('%y%m%d_%H%M')
     st.write(f"(version: {version})")
 
-    col1, col2 = st.columns(2)
+    # Prepare sample CV options
+    sample_dir = "sample"
+    file_dict = {}
+    selected = None
+    if os.path.exists(sample_dir):
+        files = [f for f in os.listdir(sample_dir) if f.lower().endswith(('.pdf', '.docx'))]
+        if files:
+            file_dict = {os.path.splitext(f)[0]: f for f in files}
+
+    col1, x, col2 = st.columns([5, 1, 5]) 
     with col1:
         file = st.file_uploader("Upload your CV", type=["pdf","docx"])
+        if file_dict:
+            selected = st.selectbox("Or select a sample CV", list(file_dict.keys()))
     with col2:
         st.session_state.job_interest = st.text_area("Your job interest (optional)", placeholder="e.g., Software Engineer\nSkills: Python, Machine Learning", value=st.session_state.job_interest, height=140).strip()
+
     if st.button("Click to Process CV", type="primary", use_container_width=True):
+        txt = ""
         if file:
             txt = cv_parse(file)
-            if txt:
-                st.session_state.cv_text = txt
-                with st.spinner("Executing task...", show_time=True):
-                    start_time = time.time()
-                    st.session_state.cv_summary = cv_summary(txt)
-                    st.success(f"CV processed in {round(time.time() - start_time, 2)}s")
+        elif selected:
+            full_name = file_dict[selected]
+            filepath = os.path.join(sample_dir, full_name)
+            try:
+                with open(filepath, 'rb') as f:
+                    txt = cv_parse(f)
+            except Exception as e:
+                st.error(f"Error loading sample CV: {e}")
+        else:
+            st.error("Please upload a CV or select a sample CV.")
+        
+        if txt:
+            st.session_state.cv_text = txt
+            with st.spinner("Executing task...", show_time=True):
+                start_time = time.time()
+                st.session_state.cv_summary = cv_summary(txt)
+                st.success(f"CV processed in {round(time.time() - start_time, 2)}s")
 
     if st.session_state.cv_summary:
         st.divider()
