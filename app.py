@@ -374,7 +374,7 @@ def page_upload_cv():
     with col1:
         file = st.file_uploader("Upload your CV", type=["pdf","docx"])
         if file_dict:
-            selected = st.selectbox("Or select a sample CV", list(file_dict.keys()))
+            selected = st.selectbox("Or select a sample CV", sorted(list(file_dict.keys())))
     with col2:
         st.session_state.job_interest = st.text_area("Your job interest (optional)", placeholder="e.g., Software Engineer\nSkills: Python, Machine Learning", value=st.session_state.job_interest, height=140).strip()
 
