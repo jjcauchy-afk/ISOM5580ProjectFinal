@@ -231,6 +231,7 @@ def cv_suggestion(cv_text):
 def load_jobs_data():
     try:
         df = pd.read_csv("dataset_jobs.csv").fillna("")
+        df = df.drop_duplicates(subset=['url'])
         return df
     except Exception as e:
         st.error(f"Failed to load jobs data: {e}")
@@ -284,7 +285,7 @@ def match_jobs_auto(cv_summary, job_interest):
     j_emb = st.session_state.j_emb
 
     df["match_score"] = np.round(util.cos_sim(q_emb, j_emb)[0].cpu().numpy() * 100, 2)
-    df = df.sort_values("match_score", ascending=False).head(MAX_JOBS).reset_index(drop=True)
+    df = df.sort_values("match_score", ascending=False, kind='mergesort').head(MAX_JOBS).reset_index(drop=True)
     semantic_time = round(time.time() - semantic_start, 2)
 
     # OpenAI
@@ -293,7 +294,7 @@ def match_jobs_auto(cv_summary, job_interest):
     for _, row in df.iterrows():
         prompts.append(f"Summarize job in 50 words:\n{row['description'][:1000]}")
         prompts.append(f"Why fit? 50 words:\nJob: {row['position']}\nMy CV: {cv_summary}\nInterests: {job_interest}")
-    responses = generate_batch(prompts, max_tokens_per=100)
+    responses = generate_batch(prompts, max_tokens_per=200)
 
     summaries = []
     reasons = []
@@ -345,7 +346,7 @@ def match_profiles_auto(cv_summary, job_interest):
     p_emb = st.session_state.p_emb
 
     df["match_score"] = np.round(util.cos_sim(q_emb, p_emb)[0].cpu().numpy() * 100, 2)
-    df = df.sort_values("match_score", ascending=False).head(MAX_PROFILES).reset_index(drop=True)
+    df = df.sort_values("match_score", ascending=False, kind='mergesort').head(MAX_PROFILES).reset_index(drop=True)
     semantic_time = round(time.time() - semantic_start, 2)
 
     # OpenAI
@@ -355,7 +356,7 @@ def match_profiles_auto(cv_summary, job_interest):
         prompts.append(f"Summarize mentor profile in 50 words:\n{row['about']}")
         prompts.append(f"Why mentor match? 50 words:\n{row['position']}\nMy CV: {cv_summary}")
         prompts.append(f"50-word LinkedIn message to {row['name']} for 15min career chat, casual style.")
-    res = generate_batch(prompts, max_tokens_per=100)
+    res = generate_batch(prompts, max_tokens_per=200)
 
     summaries = []
     reasons = []
@@ -609,8 +610,6 @@ def main():
                 os.remove(J_EMB_PATH)
             if os.path.exists(P_EMB_PATH):
                 os.remove(P_EMB_PATH)
-            st.session_state.j_emb = None
-            st.session_state.p_emb = None
             st.success("Embeddings cache reset.")
 
     pages = {
@@ -624,4 +623,4 @@ def main():
     pages[st.session_state.current_page]()
 
 if __name__ == "__main__":
-    main()
+    main() 
