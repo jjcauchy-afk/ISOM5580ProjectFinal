@@ -211,3 +211,6 @@ profiles - 10000.json
 .vs/
 .vs/slnx.sqlite
 /.vs/slnx.sqlite
+/env1
+/dataset_jobs_full.csv
+/download.py
