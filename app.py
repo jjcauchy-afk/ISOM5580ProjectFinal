@@ -490,7 +490,7 @@ def page_target_job():
         return
     st.write("Enter the job description you want to tailor your CV for.")
     job_desc = st.text_area("Target Job Description", value=st.session_state.target_job_desc, height=200)
-    if st.button("Tailor CV for Job", type="primary", use_container_width=True):
+    if st.button("Tailor CV for Job and Suggest improvements", type="primary", use_container_width=True):
         if job_desc.strip():
             with st.spinner("Processing...", show_time=True):
                 start_time = time.time()
