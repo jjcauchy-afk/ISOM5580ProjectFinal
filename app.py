@@ -10,6 +10,7 @@ from pathlib import Path
 import time
 import datetime
 import pytz
+from dotenv import load_dotenv
 
 # ────────────────────────────────────────────────
 #  CSS
@@ -59,14 +60,26 @@ def add_highlighted_button_css():
 # ────────────────────────────────────────────────
 #  CONFIG
 # ────────────────────────────────────────────────
-AZURE_OPENAI_API_KEY = st.secrets.get("AZURE_OPENAI_API_KEY", "")
-AZURE_ENDPOINT = st.secrets.get("AZURE_ENDPOINT", "")
-AZURE_API_VERSION = st.secrets.get("AZURE_API_VERSION", "2024-02-15-preview")
-AZURE_MODEL = st.secrets.get("AZURE_MODEL", "")
+load_dotenv()
+
+def get_config(key):
+    # Try to get from Streamlit secrets first
+    try:
+        if key in st.secrets:
+            return st.secrets[key]
+    except Exception:
+        pass
+    # Fallback to environment variables 
+    return os.getenv(key, "")
+
+AZURE_OPENAI_API_KEY = get_config("AZURE_OPENAI_API_KEY")
+AZURE_ENDPOINT = get_config("AZURE_ENDPOINT")
+AZURE_API_VERSION = get_config("AZURE_API_VERSION")
+AZURE_MODEL = get_config("AZURE_MODEL")
 
 SEMANTIC_MODEL = "all-MiniLM-L6-v2"
-MAX_JOBS = 10
-MAX_PROFILES = 5
+MAX_JOBS = 100
+MAX_PROFILES = 20
 RANDOM_JOBS = 100
 RANDOM_PROFILES = 100
 
@@ -337,7 +350,7 @@ def match_profiles_auto(cv_summary, job_interest):
 def page_upload_cv():
     st.title("🌉 CareerBridge AI")
     st.header(f"Your CV and Job Interests")
-    st.write(f"(version: {datetime.datetime.now(pytz.timezone("Asia/Hong_Kong")).strftime('%y%m%d_%H%M')}) 2")
+    st.write(f"(version: {datetime.datetime.now(pytz.timezone('Asia/Hong_Kong')).strftime('%y%m%d_%H%M')}) 2")
 
     col1, col2 = st.columns(2)
     with col1:
