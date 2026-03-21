@@ -80,8 +80,8 @@ AZURE_MODEL = get_config("AZURE_MODEL")
 SEMANTIC_MODEL = "all-MiniLM-L6-v2"
 MAX_JOBS = 10
 MAX_PROFILES = 10
-RANDOM_JOBS = 100
-RANDOM_PROFILES = 100
+JOBS_PER_PAGE = 5
+PROFILES_PER_PAGE = 5
 
 # ────────────────────────────────────────────────
 #  SESSION STATE
@@ -116,6 +116,10 @@ if 'cv_improvements' not in st.session_state:
     st.session_state.cv_improvements = ""
 if 'candidate_improvements' not in st.session_state:
     st.session_state.candidate_improvements = ""
+if 'jobs_page' not in st.session_state:
+    st.session_state.jobs_page = 1
+if 'profiles_page' not in st.session_state:
+    st.session_state.profiles_page = 1
 
 # ────────────────────────────────────────────────
 #  AUTO-RESET
@@ -246,7 +250,7 @@ def load_profiles_data():
 def match_jobs_auto(cv_summary, job_interest):
     if st.session_state.df_jobs.empty:
         st.error("Job not available in session.")
-        return pd.DataFrame(), 0, 0
+        return pd.DataFrame(), 0
     df = st.session_state.df_jobs.copy()
 
     # Compute job embeddings 
@@ -281,7 +285,10 @@ def match_jobs_auto(cv_summary, job_interest):
         prompts.append(f"Summarize job in 50 words:\n{row['description'][:1000]}")
         prompts.append(f"Why fit? 50 words:\nJob: {row['position']}\nMy CV: {cv_summary}\nInterests: {job_interest}")
     responses = generate_batch(prompts, max_tokens_per=60)
-
+    # Add empty columns for summary and reason
+    df["job_summary"] = ""
+    df["fit_reason"] = ""
+    
     summaries = []
     reasons = []
     for i in range(0, len(responses), 2):
@@ -290,16 +297,14 @@ def match_jobs_auto(cv_summary, job_interest):
     df["summary"] = summaries
     df["reason"] = reasons
     openai_time = round(time.time() - openai_start, 2)
-    
+    return df, semantic_time
+
     return df, semantic_time, openai_time
 
-# ────────────────────────────────────────────────
-#  MENTOR MATCHING
-# ────────────────────────────────────────────────
 def match_profiles_auto(cv_summary, job_interest):
     if st.session_state.df_profiles.empty:
         st.error("Profiles not available in session.")
-        return pd.DataFrame(), 0, 0
+        return pd.DataFrame(), 0
     df = st.session_state.df_profiles.copy()
 
     # Compute profile embeddings only once
@@ -327,76 +332,20 @@ def match_profiles_auto(cv_summary, job_interest):
     df = df.sort_values("match_score", ascending=False).head(MAX_PROFILES).reset_index(drop=True)
     semantic_time = round(time.time() - semantic_start, 2)
 
-    # OpenAI
-    openai_start = time.time()
-    prompts = []
-    for _, row in df.iterrows():
-        prompts.append(f"Summarize mentor profile in 50 words:\n{row['about']}")
-        prompts.append(f"Why mentor match? 50 words:\n{row['position']}\nMy CV: {cv_summary}")
-        prompts.append(f"50-word LinkedIn message to {row['name']} for 15min career chat, casual style.")
-    res = generate_batch(prompts, max_tokens_per=60)
-
-    summaries = []
-    reasons = []
-    greetings = []
-    for i in range(0, len(res), 3):
-        summaries.append(res[i] if i < len(res) else "")
-        reasons.append(res[i+1] if (i+1) < len(res) else "")
-        greetings.append(res[i+2] if (i+2) < len(res) else "")
-    df["summary"] = summaries
-    df["reason"] = reasons
-    df["greeting"] = greetings
-    openai_time = round(time.time() - openai_start, 2)
+    # Add empty columns for summary, reason, greeting
+    df["profile_summary"] = ""
+    df["fit_reason"] = ""
+    df["greeting"] = ""
     
-    return df, semantic_time, openai_time
+    return df, semantic_time
 
 # ────────────────────────────────────────────────
-#  PAGES 
+#  PAGE NAVIGATION
 # ────────────────────────────────────────────────
-def page_upload_cv():
-    st.title("🌉 CareerBridge AI")
-    st.header(f"Your CV and Job Interests")
-    mtime = os.path.getmtime("app.py")
-    dt = datetime.datetime.fromtimestamp(mtime, tz=pytz.timezone('Asia/Hong_Kong'))
-    version = dt.strftime('%y%m%d_%H%M')
-    st.write(f"(version: {version})")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        file = st.file_uploader("Upload your CV", type=["pdf","docx"])
-    with col2:
-        st.session_state.job_interest = st.text_area("Your job interest (optional)", placeholder="e.g., Software Engineer\nSkills: Python, Machine Learning", value=st.session_state.job_interest, height=140).strip()
-    if st.button("Click to Process CV", type="primary", use_container_width=True):
-        if file:
-            txt = cv_parse(file)
-            if txt:
-                st.session_state.cv_text = txt
-                with st.spinner("Executing task...", show_time=True):
-                    start_time = time.time()
-                    st.session_state.cv_summary = cv_summary(txt)
-                    st.success(f"CV processed in {round(time.time() - start_time, 2)}s")
-
-    if st.session_state.cv_summary:
-        st.divider()
-        st.subheader("📊 CV Summary")
-        st.markdown(st.session_state.cv_summary)
-
-def page_cv_suggestions():
-    st.title("💡 CV Suggestions")
-    if not st.session_state.cv_text:
-        st.warning("Upload your CV first")
-        return
-    if not st.session_state.cv_suggestions:
-        with st.spinner("Executing task...", show_time=True):
-            start_time = time.time()
-            st.session_state.cv_suggestions = cv_suggestion(st.session_state.cv_text)
-            st.success(f"CV suggestions processed in {round(time.time() - start_time, 2)}s")
-    st.markdown(st.session_state.cv_suggestions)
-
-def page_matched_jobs():
-    st.title("🔍 Matched Jobs")
+def render_jobs_page():
+    st.header("Job Matches")
     if not st.session_state.cv_summary:
-        st.warning("Upload your CV first")
+        st.warning("Upload CV first")
         return
 
     if st.session_state.df_jobs.empty:
@@ -404,21 +353,57 @@ def page_matched_jobs():
     
     if st.session_state.matched_jobs.empty:
         with st.spinner("Executing task...", show_time=True):
-            matched_jobs_df, semantic_time, openai_time = match_jobs_auto(
+            matched_jobs_df, semantic_time = match_jobs_auto(
                 st.session_state.cv_summary,
                 st.session_state.job_interest
             )
             st.session_state.matched_jobs = matched_jobs_df
-            st.success(f"Matched jobs processed - Semantic Search: {semantic_time}s | OpenAI: {openai_time}s")
-    
-    for _, row in st.session_state.matched_jobs.iterrows():
+            st.success(f"Matched jobs processed - Semantic Search: {semantic_time}s")
+
+    df = st.session_state.matched_jobs
+
+    if df.empty:
+        st.info("No job matches found. Update your CV or job interest.")
+        return
+
+    # Pagination
+    total_jobs = len(df)
+    total_pages = int(np.ceil(total_jobs / JOBS_PER_PAGE))
+    page = st.session_state.jobs_page
+
+    start_idx = (page - 1) * JOBS_PER_PAGE
+    end_idx = min(start_idx + JOBS_PER_PAGE, total_jobs)
+    df_PAGE = df.iloc[start_idx:end_idx]
+
+    # Compute OpenAI for missing summaries/reasons
+    indices_to_compute = []
+    for idx in df_PAGE.index:
+        if df.at[idx, 'job_summary'] == "" or df.at[idx, 'fit_reason'] == "":
+            indices_to_compute.append(idx)
+
+    if indices_to_compute:
+        with st.spinner("Generating job details..."):
+            openai_start = time.time()
+            prompts = []
+            for idx in indices_to_compute:
+                row = df.loc[idx]
+                prompts.append(f"Summarize job in 50 words:\n{row['description'][:1000]}")
+                prompts.append(f"Why fit? 50 words:\nJob: {row['position']}\nMy CV: {st.session_state.cv_summary}\nInterests: {st.session_state.job_interest}")
+            responses = generate_batch(prompts, max_tokens_per=60)
+            for i, idx in enumerate(indices_to_compute):
+                df.at[idx, 'job_summary'] = responses[i*2] if i*2 < len(responses) else ""
+                df.at[idx, 'fit_reason'] = responses[i*2 + 1] if i*2 + 1 < len(responses) else ""
+            openai_time = round(time.time() - openai_start, 2)
+            st.success(f"Job details generated in {openai_time}s")
+
+    for _, row in df_PAGE.iterrows():
         with st.expander(f"**{row['position']}** - Score: {round(row['match_score'],2)}%"):
             col1, col2 = st.columns([3, 1])  
             with col1:
                 st.write(f"**Company**: {row.get('company')}")
                 st.write(f"**Location**: {row.get('location')}")
-                st.write(f"**Summary**:  \n{row.get('summary')}")
-                st.write(f"**Why Fit?**  \n{row.get('reason')}")
+                st.write(f"**Summary**:  \n{row.get('job_summary')}")
+                st.write(f"**Why Fit?**  \n{row.get('fit_reason')}")
             
             with col2:
                 if "url" in row and row['url']:
@@ -430,14 +415,28 @@ def page_matched_jobs():
                         type="primary"
                     )
                 if st.button("Tailor CV for This Job", key=f"tailor_{_}"):
-                    st.session_state.target_job_desc = row['description']
+                    st.session_state.target_job_desc = "Job Title: " + row['position'] + "\n\n" + row['description']
                     st.session_state.current_page = "target_job"
                     st.rerun()
 
-def page_matched_profiles():
-    st.title("👥 Career Mentors")
+    # Page navigation
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.session_state.jobs_page > 1:
+            if st.button("Previous", key="prev_jobs"):
+                st.session_state.jobs_page -= 1
+                st.rerun()
+
+    with col2:
+        if st.session_state.jobs_page < total_pages:
+            if st.button("Next", key="next_jobs"):
+                st.session_state.jobs_page += 1
+                st.rerun()
+
+def render_profiles_page():
+    st.header("Profile Matches")
     if not st.session_state.cv_summary:
-        st.warning("Upload your CV first")
+        st.warning("Upload CV first")
         return
 
     if st.session_state.df_profiles.empty:
@@ -447,90 +446,99 @@ def page_matched_profiles():
     
     if st.session_state.matched_profiles.empty:
         with st.spinner("Executing task...", show_time=True):
-            matched_profiles_df, semantic_time, openai_time = match_profiles_auto(
+            matched_profiles_df, semantic_time = match_profiles_auto(
                 st.session_state.cv_summary,
                 st.session_state.job_interest
             )
             st.session_state.matched_profiles = matched_profiles_df
-            st.success(f"Matched mentors processed - Semantic Search: {semantic_time}s | OpenAI: {openai_time}s")
-    
-    for _, row in st.session_state.matched_profiles.iterrows():
-        with st.expander(f"**{row['name']}** - Score: {round(row['match_score'],2)}%"):
+            st.success(f"Matched mentors processed - Semantic Search: {semantic_time}s")
+
+    df = st.session_state.matched_profiles
+
+    if df.empty:
+        st.info("No profile matches found. Update your CV or job interest.")
+        return
+
+    # Pagination
+    total_profiles = len(df)
+    total_pages = int(np.ceil(total_profiles / PROFILES_PER_PAGE))
+    page = st.session_state.profiles_page
+
+    start_idx = (page - 1) * PROFILES_PER_PAGE
+    end_idx = min(start_idx + PROFILES_PER_PAGE, total_profiles)
+    df_PAGE = df.iloc[start_idx:end_idx]
+
+    # Compute OpenAI for missing summaries/reasons/greet
+    indices_to_compute = []
+    for idx in df_PAGE.index:
+        if df.at[idx, 'profile_summary'] == "" or df.at[idx, 'fit_reason'] == "" or df.at[idx, 'greeting'] == "":
+            indices_to_compute.append(idx)
+
+    if indices_to_compute:
+        with st.spinner("Generating profile details..."):
+            openai_start = time.time()
+            prompts = []
+            for idx in indices_to_compute:
+                row = df.loc[idx]
+                prompts.append(f"Summarize profile in 50 words:\n{row['about'][:1000]}")
+                prompts.append(f"Why fit? 50 words:\nJob: {row['position']}\nMy CV: {st.session_state.cv_summary}\nInterests: {st.session_state.job_interest}")
+                prompts.append(f"Generate a greeting message for networking:\n{row['about'][:500]}")
+            responses = generate_batch(prompts, max_tokens_per=60)
+            for i, idx in enumerate(indices_to_compute):
+                df.at[idx, 'profile_summary'] = responses[i*3] if i*3 < len(responses) else ""
+                df.at[idx, 'fit_reason'] = responses[i*3 + 1] if i*3 + 1 < len(responses) else ""
+                df.at[idx, 'greeting'] = responses[i*3 + 2] if i*3 + 2 < len(responses) else ""
+            openai_time = round(time.time() - openai_start, 2)
+            st.success(f"Profile details generated in {openai_time}s")
+
+    for _, row in df_PAGE.iterrows():
+        with st.expander(f"**{row['position']}** - Score: {round(row['match_score'],2)}%"):
             col1, col2 = st.columns([3, 1])  
             with col1:
-                st.write(f"**Position**:  \n{row.get('position')}")
-                st.write(f"**Profile Summary**:  \n{row.get('summary')}")
-                st.write(f"**Why Fit?**  \n{row.get('reason')}")
-                st.divider()
-                st.markdown(f"**☕ Coffee Chat Message**  \n{row.get('greeting')}")
+                st.write(f"**Name**: {row.get('name')}")
+                st.write(f"**Company**: {row.get('company')}")
+                st.write(f"**Location**: {row.get('location')}")
+                st.write(f"**Summary**:  \n{row.get('profile_summary')}")
+                st.write(f"**Why Fit?**  \n{row.get('fit_reason')}")
+                st.write(f"**Connecting Message**:  \n{row.get('greeting')}")
             
             with col2:
-                if "url" in row and row['url']:
-                    linkedin_url = row['url']
-                    st.link_button(
-                        label="View LinkedIn Profile",
-                        url=linkedin_url,
-                        use_container_width=True,
-                        type="primary"
-                    )
+                linkedin_url = f"https://www.linkedin.com/in/{row['linkedin_id']}"
+                st.link_button(
+                    label="View Profile on LinkedIn",
+                    url=linkedin_url,
+                    use_container_width=True,
+                    type="primary"
+                )
+                if st.button("Engage with Profile", key=f"engage_{_}"):
+                    st.session_state.target_job_desc = "Job Title: " + row['position'] + "\n\n" + row['about']
+                    st.session_state.current_page = "target_profile"
+                    st.rerun()
 
-def page_target_job():
-    st.title("🎯 Target Job Tailoring")
-    if not st.session_state.cv_summary:
-        st.warning("Upload your CV first")
-        return
-    st.write("Enter the job description you want to tailor your CV for.")
-    job_desc = st.text_area("Target Job Description", value=st.session_state.target_job_desc, height=200)
-    if st.button("Tailor CV for Job", type="primary", use_container_width=True):
-        if job_desc.strip():
-            with st.spinner("Processing...", show_time=True):
-                start_time = time.time()
-                # Improvement 1: CV content improvements
-                prompt1 = f"Based on CV summary: {st.session_state.cv_summary}, suggest specific improvements to CV content to better match this job: {job_desc}. Provide 3-5 bullet points."
-                st.session_state.cv_improvements = generate_text(prompt1, max_tokens=600)
-                # Improvement 2: Candidate short/long term improvements
-                prompt2 = f"Based on CV summary: {st.session_state.cv_summary}, suggest improvements for the candidate to better qualify for this job: {job_desc}. Provide 3-5 bullet points."
-                st.session_state.candidate_improvements = generate_text(prompt2, max_tokens=600)
-                st.success(f"Processed in {round(time.time() - start_time, 2)}s")
-        else:
-            st.error("Please enter a job description.")
-    
-    if st.session_state.cv_improvements or st.session_state.candidate_improvements:
-        st.divider()
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("📄 CV Content Improvements")
-            st.markdown(st.session_state.cv_improvements)
-        with col2:
-            st.subheader("🚀 Candidate Development Suggestions")
-            st.markdown(st.session_state.candidate_improvements)
+    # Page navigation
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.session_state.profiles_page > 1:
+            if st.button("Previous", key="prev_profiles"):
+                st.session_state.profiles_page -= 1
+                st.rerun()
 
-# ────────────────────────────────────────────────
-#  NAVIGATION
-# ────────────────────────────────────────────────
-def main():
-    add_highlighted_button_css()
-    with st.sidebar:
-        st.title("🌉 Navigation")
-        if st.button("📄 Upload CV", use_container_width=True):
-            st.session_state.current_page = "upload_cv"
-        if st.button("💡 CV Suggestions", use_container_width=True):
-            st.session_state.current_page = "cv_suggestions"
-        if st.button("🎯 Target Job Tailoring", use_container_width=True):
-            st.session_state.current_page = "target_job"
-        if st.button("🔍 Match Jobs", use_container_width=True):
-            st.session_state.current_page = "matched_jobs"
-        if st.button("👥 Look for Mentors", use_container_width=True):
-            st.session_state.current_page = "matched_profiles"
+    with col2:
+        if st.session_state.profiles_page < total_pages:
+            if st.button("Next", key="next_profiles"):
+                st.session_state.profiles_page += 1
+                st.rerun()
 
-    pages = {
-        "upload_cv": page_upload_cv,
-        "cv_suggestions": page_cv_suggestions,
-        "target_job": page_target_job,
-        "matched_jobs": page_matched_jobs,
-        "matched_profiles": page_matched_profiles
-    }
+# Map page names to functions
+pages = {
+    "upload_cv": page_upload_cv,
+    "cv_suggestions": page_cv_suggestions,
+    "matched_jobs": render_jobs_page,
+    "matched_profiles": render_profiles_page
+}
+
+# Show the current page
+if st.session_state.current_page in pages:
     pages[st.session_state.current_page]()
-
-if __name__ == "__main__":
-    main()
+else:
+    st.error("Page not found")
