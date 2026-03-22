@@ -593,7 +593,7 @@ def page_info():
     - 📑 **Paging**: Implement pagination for job and mentor search results to handle large datasets efficiently.
     - 👤 **Membership**: Introduce user accounts with saved profiles, search history, and personalized recommendations.
     - 📡 **Real-Time Data**: Integrate APIs for live job postings and mentor availability updates.
-    - 🧬🔬 **Advanced Matching**: Enhance semantic search with user feedback loops and machine learning for better accuracy.
+    - 🧩 **Advanced Matching**: Enhance semantic search with user feedback loops and machine learning for better accuracy.
     - 🔔 **Notifications**: Add email or in-app alerts for new job matches or mentor connections.
     - 📈 **Analytics**: Provide users with insights into their CV strength and career progression.
     """)
