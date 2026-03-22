@@ -563,7 +563,7 @@ def page_matched_profiles():
 def page_info():
     st.title("ℹ️ About CareerBridge AI")
     
-    st.header("🤖 App Summary")
+    st.header("📋📝📑 App Summary")
     st.write("""
     CareerBridge AI is a Streamlit-based application designed to assist users in their career development. It leverages AI to analyze CVs, provide personalized suggestions, match job opportunities, and connect with potential mentors. The app uses semantic search and generative AI to deliver tailored insights and recommendations. 
     """)
