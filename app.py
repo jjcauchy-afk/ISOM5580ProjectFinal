@@ -281,7 +281,7 @@ def match_jobs_auto(cv_summary, job_interest):
     semantic_start = time.time()
     cv_emb = embedder.encode(cv_summary, convert_to_tensor=True)
     int_emb = embedder.encode(job_interest, convert_to_tensor=True) if job_interest else cv_emb
-    q_emb = (cv_emb + int_emb)/2
+    q_emb = cv_emb * 0.7 + int_emb * 0.3
     j_emb = st.session_state.j_emb
 
     df["match_score"] = np.round(util.cos_sim(q_emb, j_emb)[0].cpu().numpy() * 100, 2)
@@ -354,7 +354,7 @@ def match_profiles_auto(cv_summary, job_interest):
     prompts = []
     for _, row in df.iterrows():
         prompts.append(f"Summarize mentor profile in 50 words:\n{row['about']}")
-        prompts.append(f"Why mentor match? 50 words:\n{row['position']}\nMy CV: {cv_summary}")
+        prompts.append(f"Why mentor match? 50 words:\nMy CV: {cv_summary}")
         prompts.append(f"50-word LinkedIn message to {row['name']} for 15min career chat, casual style.")
     res = generate_batch(prompts, max_tokens_per=200)
 
@@ -509,7 +509,7 @@ def page_target_job():
     
     if st.session_state.cv_improvements or st.session_state.candidate_improvements:
         st.divider()
-        col1, col2 = st.columns(2)
+        col1, x, col2 = st.columns([5, 1, 5]) 
         with col1:
             st.subheader("📄 CV Content Improvements")
             st.markdown(st.session_state.cv_improvements)
@@ -545,6 +545,7 @@ def page_matched_profiles():
                 st.write(f"**Position**:  \n{row.get('position')}")
                 st.write(f"**Profile Summary**:  \n{row.get('summary')}")
                 st.write(f"**Why Fit?**  \n{row.get('reason')}")
+                #st.write(f"Debug: Position: {row.get('position')}, Reason: {row.get('reason')}")
                 st.divider()
                 st.markdown(f"**☕ Coffee Chat Message**  \n{row.get('greeting')}")
             
@@ -624,4 +625,4 @@ def main():
     pages[st.session_state.current_page]()
 
 if __name__ == "__main__":
-    main() 
+    main()
