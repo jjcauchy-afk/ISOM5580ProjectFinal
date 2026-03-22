@@ -435,7 +435,7 @@ def page_cv_suggestions():
     st.title("💡 CV Suggestions")
     st.write("Get AI-generated suggestions to improve your CV.")
     if not st.session_state.cv_text:
-        st.warning("Upload your CV first")
+        st.warning("Upload and process your CV first")
         return
     if not st.session_state.cv_suggestions:
         with st.spinner("Executing task...", show_time=True):
@@ -448,7 +448,7 @@ def page_matched_jobs():
     st.title("🔍 Matched Jobs")
     st.write("Discover job opportunities that match your CV and interests (top 10 listed).")
     if not st.session_state.cv_summary:
-        st.warning("Upload your CV first")
+        st.warning("Upload and process your CV first")
         return
 
     if st.session_state.df_jobs.empty:
@@ -489,7 +489,7 @@ def page_matched_jobs():
 def page_target_job():
     st.title("🎯 Target Job Tailoring")
     if not st.session_state.cv_summary:
-        st.warning("Upload your CV first")
+        st.warning("Upload and process your CV first")
         return
     st.write("Enter the job description you want to tailor your CV for.")
     job_desc = st.text_area("Provide target job description or select one from matched jobs",  value=st.session_state.target_job_desc, height=200)
@@ -521,7 +521,7 @@ def page_matched_profiles():
     st.title("👥 Career Mentors")
     st.write("Find potential career mentors based on your profile (top 10 listed).")
     if not st.session_state.cv_summary:
-        st.warning("Upload your CV first")
+        st.warning("Upload and process your CV first")
         return
 
     if st.session_state.df_profiles.empty:
@@ -603,7 +603,7 @@ def page_info():
 def main():
     add_highlighted_button_css()
     with st.sidebar:
-        st.title("🧭 Navigation")
+        st.title("🗺️ Navigation")
         if st.button("📄 Upload CV", use_container_width=True):
             st.session_state.current_page = "upload_cv"
         if st.button("💡 CV Suggestions", use_container_width=True):
