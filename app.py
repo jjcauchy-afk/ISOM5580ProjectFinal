@@ -395,15 +395,15 @@ def page_upload_cv():
     col1, x, col2 = st.columns([5, 1, 5]) 
 
     with col1:
-        st.subheader(f"Step 1. Your CV")
+        st.subheader(f"Step 1. Your CV 📄")
         file = st.file_uploader("Upload your CV", type=["pdf","docx"])
         if file_dict:
             selected = st.selectbox("Or select a sample CV", sorted(list(file_dict.keys())))
     with col2:
-        st.subheader(f"Step 2. Your Interest")
-        st.session_state.job_interest = st.text_area("Your job interest (optional)", placeholder="e.g., Software Engineer\nSkills: Python, Machine Learning", value=st.session_state.job_interest, height=140).strip()
+        st.subheader(f"Step 2. Your Interests ⭐🧩")
+        st.session_state.job_interest = st.text_area("Tell me about your job interests (optional)", placeholder="e.g., Software Engineer\nSkills: Python, Machine Learning", value=st.session_state.job_interest, height=140).strip()
 
-    st.subheader(f"Step 3. Process")
+    st.subheader(f"Step 3. Process ⚙️")
     if st.button("Click to Process CV", type="primary", use_container_width=True):
         txt = ""
         if file:
