@@ -488,10 +488,11 @@ def page_matched_jobs():
 
 def page_target_job():
     st.title("🎯 Target Job Tailoring")
+    st.write("Enter the job description you want to tailor your CV for.")
+
     if not st.session_state.cv_summary:
         st.warning("Upload and process your CV first")
         return
-    st.write("Enter the job description you want to tailor your CV for.")
     job_desc = st.text_area("Provide target job description or select one from matched jobs",  value=st.session_state.target_job_desc, height=200)
     if st.button("Tailor CV for Job and Suggest improvements", type="primary", use_container_width=True):
         if job_desc.strip():
