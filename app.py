@@ -569,12 +569,12 @@ def page_info():
     
     st.header("📖 Quick User Guide")
     st.write("""
-    1. **Upload CV** 📄: On the main page, upload your CV (PDF or DOCX) or select a sample CV. Optionally, enter your job interests.
-    2. **Process CV** ⚙️: Click "Click to Process CV" to generate a summary.
-    3. **CV Suggestions** 💡: Navigate to get AI-generated improvement suggestions for your CV.
-    4. **Match Jobs** 🔍: Find job matches based on your CV and interests, with options to tailor for specific jobs.
-    5. **Target Job Tailoring** 🎯: Enter a job description to receive CV improvements and development suggestions.
-    6. **Look for Mentors** 👥: Discover potential career mentors and get LinkedIn message templates.
+    - **Upload CV** 📄: On the main page, upload your CV (PDF or DOCX) or select a sample CV. Optionally, enter your job interests.
+    - **Process CV** ⚙️: Click "Click to Process CV" to generate a summary.
+    - **CV Suggestions** 💡: Navigate to get AI-generated improvement suggestions for your CV.
+    - **Match Jobs** 🔍: Find job matches based on your CV and interests, with options to tailor for specific jobs.
+    - **Target Job Tailoring** 🎯: Enter a job description to receive CV improvements and development suggestions.
+    - **Look for Mentors** 👥: Discover potential career mentors and get LinkedIn message templates.
     """)
     
     st.header("🛠️ System Design Summary")
