@@ -603,7 +603,7 @@ def page_info():
 def main():
     add_highlighted_button_css()
     with st.sidebar:
-        st.title("🌉 Navigation")
+        st.title("🧭 Navigation")
         if st.button("📄 Upload CV", use_container_width=True):
             st.session_state.current_page = "upload_cv"
         if st.button("💡 CV Suggestions", use_container_width=True):
