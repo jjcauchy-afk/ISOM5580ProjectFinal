@@ -400,7 +400,7 @@ def page_upload_cv():
         if file_dict:
             selected = st.selectbox("Or select a sample CV", sorted(list(file_dict.keys())))
     with col2:
-        st.subheader(f"Step 2. Your Interests ⭐🧩")
+        st.subheader(f"Step 2. Your Interests ⭐")
         st.session_state.job_interest = st.text_area("Tell me about your job interests (optional)", placeholder="e.g., Software Engineer\nSkills: Python, Machine Learning", value=st.session_state.job_interest, height=140).strip()
 
     st.subheader(f"Step 3. Process ⚙️")
@@ -563,7 +563,7 @@ def page_matched_profiles():
 def page_info():
     st.title("ℹ️ About CareerBridge AI")
     
-    st.header("🚀 App Summary")
+    st.header("🤖 App Summary")
     st.write("""
     CareerBridge AI is a Streamlit-based application designed to assist users in their career development. It leverages AI to analyze CVs, provide personalized suggestions, match job opportunities, and connect with potential mentors. The app uses semantic search and generative AI to deliver tailored insights and recommendations. 
     """)
