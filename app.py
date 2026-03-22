@@ -224,7 +224,7 @@ def cv_summary(cv_text):
 def cv_suggestion(cv_text):
     if not cv_text:
         return "", ""
-    sug_txt = generate_text("Suggest 3-5 CV improvements (max 50 words each):\n"+cv_text, 800)
+    sug_txt = generate_text("Suggest 3-5 CV improvements (max 50 words each):\n"+cv_text, 800, 0.7)
     return sug_txt
 
 @st.cache_data
