@@ -381,7 +381,7 @@ def page_upload_cv():
     mtime = os.path.getmtime("app.py")
     dt = datetime.datetime.fromtimestamp(mtime, tz=pytz.timezone('Asia/Hong_Kong'))
     version = dt.strftime('%y%m%d_%H%M')
-    st.write(f"(version: {version})")
+    st.write(f"(beta version: {version})")
 
     # Prepare sample CV options
     sample_dir = "sample"
