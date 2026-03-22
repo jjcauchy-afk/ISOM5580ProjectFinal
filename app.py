@@ -563,39 +563,39 @@ def page_matched_profiles():
 def page_info():
     st.title("ℹ️ About CareerBridge AI")
     
-    st.header("📋📝📑 App Summary")
+    st.header("📝 App Summary")
     st.write("""
     CareerBridge AI is a Streamlit-based application designed to assist users in their career development. It leverages AI to analyze CVs, provide personalized suggestions, match job opportunities, and connect with potential mentors. The app uses semantic search and generative AI to deliver tailored insights and recommendations. 
     """)
     
     st.header("📖 Quick User Guide")
     st.write("""
-    - **Upload CV** 📄: On the main page, upload your CV (PDF or DOCX) or select a sample CV. Optionally, enter your job interests.
-    - **Process CV** ⚙️: Click "Click to Process CV" to generate a summary.
-    - **CV Suggestions** 💡: Navigate to get AI-generated improvement suggestions for your CV.
-    - **Match Jobs** 🔍: Find job matches based on your CV and interests, with options to tailor for specific jobs.
-    - **Target Job Tailoring** 🎯: Enter a job description to receive CV improvements and development suggestions.
-    - **Look for Mentors** 👥: Discover potential career mentors and get LinkedIn message templates.
+    - 📄 **Upload CV**: On the main page, upload your CV (PDF or DOCX) or select a sample CV. Optionally, enter your job interests.
+    - ⚙️ **Process CV**: Click "Click to Process CV" to generate a summary.
+    - 💡 **CV Suggestions**: Navigate to get AI-generated improvement suggestions for your CV.
+    - 🔍 **Match Jobs**: Find job matches based on your CV and interests, with options to tailor for specific jobs.
+    - 🎯 **Target Job Tailoring**: Enter a job description to receive CV improvements and development suggestions.
+    - 👥 **Look for Mentors**: Discover potential career mentors and get LinkedIn message templates.
     """)
     
     st.header("🛠️ System Design Summary")
     st.write("""
-    - **Frontend** 💻: Built with Streamlit for an interactive web interface.
-    - **AI Models** 🧠: Uses Azure OpenAI for text generation and Sentence Transformers for semantic similarity matching.
-    - **Data Processing** 📊: Handles PDF and DOCX files for CV parsing, with embeddings computed for efficient job and profile matching.
-    - **Caching** ⚡: Employs Streamlit's caching for models and data, plus persistent disk caching for embeddings to optimize performance across sessions.
-    - **Session Management** 🔄: Maintains user state across pages for a seamless experience.
+    - 💻 **Frontend**: Built with Streamlit for an interactive web interface.
+    - 🧠 **AI Models**: Uses Azure OpenAI for text generation and Sentence Transformers for semantic similarity matching.
+    - 📊 **Data Processing**: Handles PDF and DOCX files for CV parsing, with embeddings computed for efficient job and profile matching.
+    - ⚡ **Caching**: Employs Streamlit's caching for models and data, plus persistent disk caching for embeddings to optimize performance across sessions.
+    - 🔄 **Session Management**: Maintains user state across pages for a seamless experience.
     """)
     
     st.header("🚀 Future Enhancements")
     st.write("""
-    - **Filtering**: Add filters for jobs by location, expected salary, company, and other criteria to refine search results.
-    - **Paging**: Implement pagination for job and mentor search results to handle large datasets efficiently.
-    - **Membership**: Introduce user accounts with saved profiles, search history, and personalized recommendations.
-    - **Real-Time Data**: Integrate APIs for live job postings and mentor availability updates.
-    - **Advanced Matching**: Enhance semantic search with user feedback loops and machine learning for better accuracy.
-    - **Notifications**: Add email or in-app alerts for new job matches or mentor connections.
-    - **Analytics**: Provide users with insights into their CV strength and career progression.
+    - 🎛️ **Filtering**: Add filters for jobs by location, expected salary, company, and other criteria to refine search results.
+    - 📑 **Paging**: Implement pagination for job and mentor search results to handle large datasets efficiently.
+    - 👤 **Membership**: Introduce user accounts with saved profiles, search history, and personalized recommendations.
+    - 📡 **Real-Time Data**: Integrate APIs for live job postings and mentor availability updates.
+    - 🧬🔬 **Advanced Matching**: Enhance semantic search with user feedback loops and machine learning for better accuracy.
+    - 🔔 **Notifications**: Add email or in-app alerts for new job matches or mentor connections.
+    - 📈 **Analytics**: Provide users with insights into their CV strength and career progression.
     """)
 
 # ────────────────────────────────────────────────
