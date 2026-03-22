@@ -218,7 +218,7 @@ def cv_parse(uploaded_file):
 def cv_summary(cv_text):
     if not cv_text:
         return "", ""
-    sum_txt = generate_text("Summarize CV in 4-6 sentences (max 300 words):\n"+cv_text, 2000)
+    sum_txt = generate_text("Summarize CV in max 200 words:\n"+cv_text, 800)
     return sum_txt
 
 def cv_suggestion(cv_text):
