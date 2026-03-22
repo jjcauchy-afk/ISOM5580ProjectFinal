@@ -585,6 +585,17 @@ def page_info():
     - **Caching** ⚡: Employs Streamlit's caching for models and data, plus persistent disk caching for embeddings to optimize performance across sessions.
     - **Session Management** 🔄: Maintains user state across pages for a seamless experience.
     """)
+    
+    st.header("🚀 Future Enhancements")
+    st.write("""
+    - **Filtering**: Add filters for jobs by location, expected salary, company, and other criteria to refine search results.
+    - **Paging**: Implement pagination for job and mentor search results to handle large datasets efficiently.
+    - **Membership**: Introduce user accounts with saved profiles, search history, and personalized recommendations.
+    - **Real-Time Data**: Integrate APIs for live job postings and mentor availability updates.
+    - **Advanced Matching**: Enhance semantic search with user feedback loops and machine learning for better accuracy.
+    - **Notifications**: Add email or in-app alerts for new job matches or mentor connections.
+    - **Analytics**: Provide users with insights into their CV strength and career progression.
+    """)
 
 # ────────────────────────────────────────────────
 #  NAVIGATION
