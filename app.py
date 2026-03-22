@@ -162,7 +162,7 @@ embedder = get_semantic_model()
 # ────────────────────────────────────────────────
 #  BATCH OPENAI CALLS
 # ────────────────────────────────────────────────
-def generate_text(prompt, max_tokens = 800, temperature = 0.5) -> str:
+def generate_text(prompt, max_tokens = 800, temperature = 0.4) -> str:
     if not client:
         return ""
     try:
@@ -177,7 +177,7 @@ def generate_text(prompt, max_tokens = 800, temperature = 0.5) -> str:
         st.error(f"OpenAI error: {e}")
         return ""
 
-def generate_batch(prompts, max_tokens_per = 100, temperature = 0.5):
+def generate_batch(prompts, max_tokens_per = 100, temperature = 0.4):
     if not client or not prompts:
         return [""] * len(prompts)
     try:
