@@ -408,7 +408,7 @@ def page_upload_cv():
         txt = ""
         if file:
             txt = cv_parse(file)
-            st.write(txt)
+            #st.write(txt)
         elif selected:
             full_name = file_dict[selected]
             filepath = os.path.join(sample_dir, full_name)
