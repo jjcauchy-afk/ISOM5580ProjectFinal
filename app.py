@@ -618,7 +618,8 @@ def main():
             st.session_state.current_page = "matched_profiles"
         if st.button("ℹ️ Info", use_container_width=True):
             st.session_state.current_page = "info"
-        
+
+# embedding reset - for testing purposes, can be removed in production        
 #        st.divider()
 #        if st.button("🔄 Reset Embeddings", use_container_width=True):
 #            if os.path.exists(J_EMB_PATH):
