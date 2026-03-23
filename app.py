@@ -408,7 +408,7 @@ def page_upload_cv():
         txt = ""
         if file:
             txt = cv_parse(file)
-            #st.write(txt)
+            #st.write(txt) # debugging
         elif selected:
             full_name = file_dict[selected]
             filepath = os.path.join(sample_dir, full_name)
@@ -547,7 +547,7 @@ def page_matched_profiles():
                 st.write(f"**Position**:  \n{row.get('position')}")
                 st.write(f"**Profile Summary**:  \n{row.get('summary')}")
                 st.write(f"**Why Fit?**  \n{row.get('reason')}")
-                #st.write(f"Debug: Position: {row.get('position')}, Reason: {row.get('reason')}")
+                #st.write(f"Debug: Position: {row.get('position')}, Reason: {row.get('reason')}") # debugging
                 st.divider()
                 st.markdown(f"**☕ Coffee Chat Message**  \n{row.get('greeting')}")
             
@@ -619,7 +619,7 @@ def main():
         if st.button("ℹ️ Info", use_container_width=True):
             st.session_state.current_page = "info"
 
-# embedding reset - for testing purposes, can be removed in production        
+# embedding reset - for debugging 
 #        st.divider()
 #        if st.button("🔄 Reset Embeddings", use_container_width=True):
 #            if os.path.exists(J_EMB_PATH):
