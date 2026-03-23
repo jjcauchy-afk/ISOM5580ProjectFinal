@@ -619,13 +619,13 @@ def main():
         if st.button("ℹ️ Info", use_container_width=True):
             st.session_state.current_page = "info"
         
-        st.divider()
-        if st.button("🔄 Reset Embeddings", use_container_width=True):
-            if os.path.exists(J_EMB_PATH):
-                os.remove(J_EMB_PATH)
-            if os.path.exists(P_EMB_PATH):
-                os.remove(P_EMB_PATH)
-            st.success("Embeddings cache reset.")
+#        st.divider()
+#        if st.button("🔄 Reset Embeddings", use_container_width=True):
+#            if os.path.exists(J_EMB_PATH):
+#                os.remove(J_EMB_PATH)
+#            if os.path.exists(P_EMB_PATH):
+#                os.remove(P_EMB_PATH)
+#            st.success("Embeddings cache reset.")
 
     pages = {
         "upload_cv": page_upload_cv,
