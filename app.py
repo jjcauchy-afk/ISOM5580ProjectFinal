@@ -500,10 +500,10 @@ def page_target_job():
             with st.spinner("Processing...", show_time=True):
                 start_time = time.time()
                 # Improvement 1: CV content improvements
-                prompt1 = f"Based on CV summary: {st.session_state.cv_summary}, suggest specific improvements to CV content to better match this job: {job_desc}. Provide 3-5 bullet points."
+                prompt1 = f"Based on CV summary: {st.session_state.cv_summary}\n\n, suggest specific improvements to CV content to better match this job: {job_desc}. Provide 3-5 points."
                 st.session_state.cv_improvements = generate_text(prompt1, max_tokens=600)
                 # Improvement 2: Candidate short/long term improvements
-                prompt2 = f"Based on CV summary: {st.session_state.cv_summary}, suggest improvements for the candidate to better qualify for this job: {job_desc}. Provide 3-5 bullet points."
+                prompt2 = f"Based on CV summary: {st.session_state.cv_summary}\n\n, suggest improvements for the candidate to better qualify for this job: {job_desc}. Provide 3-5 points."
                 st.session_state.candidate_improvements = generate_text(prompt2, max_tokens=600)
                 st.success(f"Processed in {round(time.time() - start_time, 2)}s")
         else:
