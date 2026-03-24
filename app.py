@@ -182,7 +182,7 @@ def generate_batch(prompts, max_tokens_per = 100, temperature = 0.4):
         return [""] * len(prompts)
     try:
         full_prompt = (
-            "Answer each question below in order. Use '||||||||' as separator between answers. No extra text.\n\n"
+            "Answer each question below in order. Use 'ZZZZZZZZ' as separator between answers. No extra text.\n\n"
             + "\n---\n".join(prompts)
         )
         res = client.chat.completions.create(
@@ -191,7 +191,7 @@ def generate_batch(prompts, max_tokens_per = 100, temperature = 0.4):
             max_tokens=max_tokens_per * len(prompts),
             temperature=temperature
         )
-        parts = res.choices[0].message.content.strip().split('||||||||')
+        parts = res.choices[0].message.content.strip().split('ZZZZZZZZ')
         parts = [p.strip() for p in parts]
         while len(parts) < len(prompts):
             parts.append("")
