@@ -353,9 +353,9 @@ def match_profiles_auto(cv_summary, job_interest):
     openai_start = time.time()
     prompts = []
     for _, row in df.iterrows():
-        prompts.append(f"Summarize mentor profile in 50 words:\n{row['about']}")
-        prompts.append(f"Why mentor match? 50 words:\nMy CV: {cv_summary}")
-        prompts.append(f"50-word LinkedIn message to {row['name']} for 15min career chat, casual style.")
+        prompts.append(f"Summarize mentor profile in 50 words:\n{row['about']}\n")
+        prompts.append(f"How this mentor help my career path? 50 words:\nMy CV: {cv_summary}\n")
+        prompts.append(f"50-word LinkedIn message to {row['name']} for a 15min online career chat, casual style.")
     res = generate_batch(prompts, max_tokens_per=200)
 
     summaries = []
