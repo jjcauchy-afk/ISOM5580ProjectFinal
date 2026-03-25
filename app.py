@@ -182,7 +182,7 @@ def generate_batch(prompts, max_tokens_per = 100, temperature = 0.4):
         return [""] * len(prompts)
     try:
         full_prompt = (
-            "Answer each question below in order. Use 'ZZZZZZZZ' as separator between answers. No extra text.\n\n"
+            "Answer each question delimited by '||||' below in order. Use '####' as delimiter between answers. No extra text.\n\n"
             + "\n---\n".join(prompts)
         )
         res = client.chat.completions.create(
@@ -191,7 +191,7 @@ def generate_batch(prompts, max_tokens_per = 100, temperature = 0.4):
             max_tokens=max_tokens_per * len(prompts),
             temperature=temperature
         )
-        parts = res.choices[0].message.content.strip().split('ZZZZZZZZ')
+        parts = res.choices[0].message.content.strip().split('####')
         parts = [p.strip() for p in parts]
         while len(parts) < len(prompts):
             parts.append("")
@@ -218,13 +218,13 @@ def cv_parse(uploaded_file):
 def cv_summary(cv_text):
     if not cv_text:
         return "", ""
-    sum_txt = generate_text("Summarize CV in max 200 words:\n"+cv_text, 1200, 0.7)
+    sum_txt = generate_text("Summarize CV in max 200 words:\n"+cv_text, 800, 0.7)
     return sum_txt
 
 def cv_suggestion(cv_text):
     if not cv_text:
         return "", ""
-    sug_txt = generate_text("Suggest 3-5 CV improvements (max 50 words each):\n"+cv_text, 1200, 0.7)
+    sug_txt = generate_text("Suggest 3-5 CV improvements (max 50 words each):\n"+cv_text, 800, 0.7)
     return sug_txt
 
 @st.cache_data
@@ -292,9 +292,9 @@ def match_jobs_auto(cv_summary, job_interest):
     openai_start = time.time()
     prompts = []
     for _, row in df.iterrows():
-        prompts.append(f"Summarize job in 50 words:\n{row['description'][:1000]}")
-        prompts.append(f"Why fit? 50 words:\nJob: {row['position']}\nMy CV: {cv_summary}\nInterests: {job_interest}")
-    responses = generate_batch(prompts, max_tokens_per=200)
+        prompts.append(f"Summarize job in 50 words:\n{row['description'][:1000]} ||||")
+        prompts.append(f"Why fit? 50 words:\nJob: {row['position']}\nMy CV: {cv_summary}\nInterests: {job_interest} ||||")
+    responses = generate_batch(prompts, max_tokens_per=100)
 
     summaries = []
     reasons = []
@@ -353,10 +353,10 @@ def match_profiles_auto(cv_summary, job_interest):
     openai_start = time.time()
     prompts = []
     for _, row in df.iterrows():
-        prompts.append(f"Summarize another mentor profile in 50 words: \n{row['about']}")
-        prompts.append(f"How this mentor help my career path in 50 words: \nMy CV: {cv_summary}")
-        prompts.append(f"50-word LinkedIn message to this mentor, {row['name']}, for a short online career chat in casual style.")
-    res = generate_batch(prompts, max_tokens_per=200)
+        prompts.append(f"Summarize mentor profile in 50 words: \n{row['about']} ||||")
+        prompts.append(f"How this mentor help my career path in 50 words: \nMy CV: {cv_summary} ||||")
+        prompts.append(f"Suggest a 50-word LinkedIn message to this mentor, {row['name']}, for a short online career chat in casual style. ||||")
+    res = generate_batch(prompts, max_tokens_per=100)
 
     summaries = []
     reasons = []
