@@ -186,7 +186,7 @@ def generate_batch(prompts, max_tokens_per = 100, temperature = 0.4, chunk_size 
             sub_prompts = prompts[i:i+chunk_size]
             sub_full_prompt = (
                 "Answer each question delimited by '||||' below in order. Use '||||' as delimiter between answers. No extra text.\n\n"
-                + "\n--------\n".join(sub_prompts)
+                + "\n----\n".join(sub_prompts)
             )
             sub_res = client.chat.completions.create(
             model=AZURE_MODEL,
@@ -303,7 +303,7 @@ def match_jobs_auto(cv_summary, job_interest):
     for _, row in df.iterrows():
         prompts.append(f"Summarize job in 50 words:\n{row['description'][:1000]} ||||")
         prompts.append(f"Why fit? 50 words:\nJob: {row['position']}\nMy CV: {cv_summary}\nInterests: {job_interest} ||||")
-    responses = generate_batch(prompts, max_tokens_per=100, chunk_size=2)
+    responses = generate_batch(prompts, max_tokens_per=800, chunk_size=2)
 
     summaries = []
     reasons = []
@@ -363,9 +363,9 @@ def match_profiles_auto(cv_summary, job_interest):
     prompts = []
     for _, row in df.iterrows():
         prompts.append(f"Summarize this mentor's' profile in 50 words: \n{row['about']} ||||")
-        prompts.append(f"Suggest why this mentor could help my career path, in 50 words. \nMy CV: {cv_summary} ||||")
+        prompts.append(f"How this mentor could help in my career path, in 50 words. \nMy CV: {cv_summary} ||||")
         prompts.append(f"Suggest a LinkedIn message to this mentor in 200 characters, {row['name']}, for a short online career chat in casual style. ||||")
-    res = generate_batch(prompts, max_tokens_per=100, chunk_size=3)
+    res = generate_batch(prompts, max_tokens_per=800, chunk_size=3)
 
     summaries = []
     reasons = []
