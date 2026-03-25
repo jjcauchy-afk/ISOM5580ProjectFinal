@@ -182,8 +182,8 @@ def generate_batch(prompts, max_tokens_per = 100, temperature = 0.4):
         return [""] * len(prompts)
     try:
         full_prompt = (
-            "Answer each question delimited by '||||' below in order. Use '####' as delimiter between answers. No extra text.\n\n"
-            + "\n---\n".join(prompts)
+            "Answer each question delimited by '||||' below in order. Use '||||' as delimiter between answers. No extra text.\n\n"
+            + "\n--------\n".join(prompts)
         )
         res = client.chat.completions.create(
             model=AZURE_MODEL,
@@ -191,7 +191,7 @@ def generate_batch(prompts, max_tokens_per = 100, temperature = 0.4):
             max_tokens=max_tokens_per * len(prompts),
             temperature=temperature
         )
-        parts = res.choices[0].message.content.strip().split('####')
+        parts = res.choices[0].message.content.strip().split('||||')
         parts = [p.strip() for p in parts]
         while len(parts) < len(prompts):
             parts.append("")
